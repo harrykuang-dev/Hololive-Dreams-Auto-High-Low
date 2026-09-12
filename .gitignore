@@ -1,0 +1,14 @@
+.venv/
+build/
+dist/
+Release/
+_internal/
+*.exe
+*.dll
+*.pyd
+*.onnx
+daily_coins.json
+__pycache__/
+test/
+新建文件夹/
+debug/

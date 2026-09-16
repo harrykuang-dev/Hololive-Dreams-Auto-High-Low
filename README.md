@@ -2,6 +2,9 @@
 
 留牌阶段的识牌与策略计算来自项目https://github.com/Oreki0504/hololive-dreams-helper
 
+Bilibili：https://space.bilibili.com/519062381
+YouTube：https://www.youtube.com/@hmr0000
+
 # Hololive Dreams Auto Bot
 
 [简体中文](#-简体中文) | [繁體中文](#-繁體中文) | [English](#-english) | [日本語](#-日本語)

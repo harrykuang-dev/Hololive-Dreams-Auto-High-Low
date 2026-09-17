@@ -3,23 +3,95 @@ import mss
 import numpy as np
 import cv2
 import pydirectinput
+import ctypes
+from ctypes import wintypes
 import random
 import time
 import os
 import json
+import sys
+from pathlib import Path
 import ddddocr
 
 from recognizer import CardRecognizer
 from poker_core import calculate_best, JOKER_ID
+
+try:
+    # Windows source-mode runs otherwise inherit a legacy console encoding and
+    # crash on the existing multilingual/emoji status messages.
+    if sys.stdout is not None and hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 # 直接全局初始化 OCR 引擎
 ocr = ddddocr.DdddOcr(show_ad=False)
 
 bot_running = False
 # ================= 全局配置与常量 =================
-GAME_TITLE = "hololive"
+GAME_TITLE = "hololive-Dreams"
 TARGET_LIMIT = 19800
-DATA_FILE = "daily_coins.json"
+
+# All bundled assets are resolved relative to the executable/source directory.
+# The old code depended on the process working directory, so launching from a
+# shortcut or another folder made every template silently disappear.
+APP_DIR = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
+RESOURCE_DIR = Path(getattr(sys, "_MEIPASS", APP_DIR)).resolve()
+TEMPLATE_DIR = RESOURCE_DIR / "templates"
+DEBUG_DIR = APP_DIR / "debug"
+DATA_FILE = APP_DIR / "daily_coins.json"
+
+# Icon templates and hard-coded recognition zones were captured at 1920x1080.
+# Every game frame is normalized to this size before matching/recognition, and
+# clicks are transformed back to the actual client size.
+REFERENCE_WIDTH = 1920
+REFERENCE_HEIGHT = 1080
+
+
+def resource_path(*parts):
+    return str(RESOURCE_DIR.joinpath(*parts))
+
+
+try:
+    # Must happen before Tk creates a window. It keeps Win32 coordinates,
+    # PrintWindow output and SendInput coordinates in the same DPI space.
+    ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
+except Exception:
+    pass
+
+
+_user32 = ctypes.windll.user32
+_gdi32 = ctypes.windll.gdi32
+_capture_context = None
+
+_user32.GetClientRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+_user32.GetClientRect.restype = wintypes.BOOL
+_user32.ClientToScreen.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.POINT)]
+_user32.ClientToScreen.restype = wintypes.BOOL
+_user32.GetDC.argtypes = [wintypes.HWND]
+_user32.GetDC.restype = wintypes.HDC
+_user32.ReleaseDC.argtypes = [wintypes.HWND, wintypes.HDC]
+_user32.ReleaseDC.restype = ctypes.c_int
+_user32.PrintWindow.argtypes = [wintypes.HWND, wintypes.HDC, wintypes.UINT]
+_user32.PrintWindow.restype = wintypes.BOOL
+_user32.IsWindow.argtypes = [wintypes.HWND]
+_user32.IsWindow.restype = wintypes.BOOL
+_user32.ShowWindowAsync.argtypes = [wintypes.HWND, ctypes.c_int]
+_user32.SetForegroundWindow.argtypes = [wintypes.HWND]
+_user32.BringWindowToTop.argtypes = [wintypes.HWND]
+_user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int,
+                                 ctypes.c_int, ctypes.c_int, wintypes.UINT]
+
+_gdi32.CreateCompatibleDC.argtypes = [wintypes.HDC]
+_gdi32.CreateCompatibleDC.restype = wintypes.HDC
+_gdi32.CreateCompatibleBitmap.argtypes = [wintypes.HDC, ctypes.c_int, ctypes.c_int]
+_gdi32.CreateCompatibleBitmap.restype = wintypes.HBITMAP
+_gdi32.SelectObject.argtypes = [wintypes.HDC, wintypes.HGDIOBJ]
+_gdi32.SelectObject.restype = wintypes.HGDIOBJ
+_gdi32.GetBitmapBits.argtypes = [wintypes.HBITMAP, wintypes.LONG, wintypes.LPVOID]
+_gdi32.GetBitmapBits.restype = wintypes.LONG
+_gdi32.DeleteObject.argtypes = [wintypes.HGDIOBJ]
+_gdi32.DeleteDC.argtypes = [wintypes.HDC]
 
 # === 动态寻框参数 ===
 CARD_WIDTH = 260
@@ -69,56 +141,58 @@ def get_real_card_value(card):
 
 ICON_TEMPLATES = {
     "START_BET": [
-        "templates/icons/en/start_en.png",
-        "templates/icons/ja/start_ja.png",
-        "templates/icons/zh/start_zh.png",
-        "templates/icons/tw/start_tw.png",
-        "templates/icons/tpl_start.png"
+        resource_path("templates", "icons", "en", "start_en.png"),
+        resource_path("templates", "icons", "ja", "start_ja.png"),
+        resource_path("templates", "icons", "zh", "start_zh.png"),
+        resource_path("templates", "icons", "tw", "start_tw.png"),
     ],
-    "HOLD_CARDS": ["templates/icons/tpl_replace.png"],
+    "HOLD_CARDS": [resource_path("templates", "icons", "tpl_replace.png")],
     "TAP_TO_PROCEED": [
-        "templates/icons/en/proceed_en.png",
-        "templates/icons/ja/proceed_ja.png",
-        "templates/icons/zh/proceed_zh.png",
-        "templates/icons/tw/proceed_tw.png",
-        "templates/icons/tpl_proceed.png"
+        resource_path("templates", "icons", "en", "proceed_en.png"),
+        resource_path("templates", "icons", "ja", "proceed_ja.png"),
+        resource_path("templates", "icons", "zh", "proceed_zh.png"),
+        resource_path("templates", "icons", "tw", "proceed_tw.png"),
     ],
-    "HIGH_LOW": ["templates/icons/tpl_high.png"],
+    "HIGH_LOW": [resource_path("templates", "icons", "tpl_high.png")],
     "RESULT": [
-        "templates/icons/en/result_en.png",
-        "templates/icons/ja/result_ja.png",
-        "templates/icons/zh/result_zh.png",
-        "templates/icons/tw/result_tw.png",
-        "templates/icons/tpl_result.png"
+        resource_path("templates", "icons", "en", "result_en.png"),
+        resource_path("templates", "icons", "ja", "result_ja.png"),
+        resource_path("templates", "icons", "zh", "result_zh.png"),
+        resource_path("templates", "icons", "tw", "result_tw.png"),
     ],
     "FAIL": [
-        "templates/icons/en/fail_en.png",
-        "templates/icons/en/toobad_en.png",
-        "templates/icons/ja/fail_ja.png",
-        "templates/icons/ja/toobad_ja.png",
-        "templates/icons/zh/fail_zh.png",
-        "templates/icons/zh/toobad_zh.png",
-        "templates/icons/tw/fail_tw.png",
-        "templates/icons/tw/toobad_tw.png"
+        resource_path("templates", "icons", "en", "fail_en.png"),
+        resource_path("templates", "icons", "en", "toobad_en.png"),
+        resource_path("templates", "icons", "ja", "fail_ja.png"),
+        resource_path("templates", "icons", "ja", "toobad_ja.png"),
+        resource_path("templates", "icons", "zh", "fail_zh.png"),
+        resource_path("templates", "icons", "zh", "toobad_zh.png"),
+        resource_path("templates", "icons", "tw", "fail_tw.png"),
+        resource_path("templates", "icons", "tw", "toobad_tw.png"),
     ],
     "ASK_CHALLENGE": [
-        "templates/icons/en/chance_en.png",
-        "templates/icons/en/success_en.png",
-        "templates/icons/ja/chance_ja.png",
-        "templates/icons/ja/success_ja.png",
-        "templates/icons/zh/chance_zh.png",
-        "templates/icons/zh/success_zh.png",
-        "templates/icons/tw/chance_tw.png",
-        "templates/icons/tw/success_tw.png"
+        resource_path("templates", "icons", "en", "chance_en.png"),
+        resource_path("templates", "icons", "en", "success_en.png"),
+        resource_path("templates", "icons", "ja", "chance_ja.png"),
+        resource_path("templates", "icons", "ja", "success_ja.png"),
+        resource_path("templates", "icons", "zh", "chance_zh.png"),
+        resource_path("templates", "icons", "zh", "success_zh.png"),
+        resource_path("templates", "icons", "tw", "chance_tw.png"),
+        resource_path("templates", "icons", "tw", "success_tw.png"),
     ],
     "FULL": [
-        "templates/icons/en/full_en.png",
-        "templates/icons/ja/full_ja.png",
-        "templates/icons/zh/full_zh.png",
-        "templates/icons/tw/full_tw.png",
-        "templates/icons/tpl_full.png"
+        resource_path("templates", "icons", "en", "full_en.png"),
+        resource_path("templates", "icons", "ja", "full_ja.png"),
+        resource_path("templates", "icons", "zh", "full_zh.png"),
+        resource_path("templates", "icons", "tw", "full_tw.png"),
     ],
 }
+
+TPL_REPLACE = resource_path("templates", "icons", "tpl_replace.png")
+TPL_HIGH = resource_path("templates", "icons", "tpl_high.png")
+TPL_LOW = resource_path("templates", "icons", "tpl_low.png")
+TPL_CHECK = resource_path("templates", "icons", "tpl_check.png")
+TPL_CROSS = resource_path("templates", "icons", "tpl_cross.png")
 
 
 # ================= 1. 核心算法：高低记牌器 =================
@@ -152,35 +226,147 @@ class HighLowCounter:
 
 
 # ================= 2. 视觉识别与控制 =================
-def capture_game_window():
-    all_titles = gw.getAllTitles()
-    target_title = None
-    for title in all_titles:
-        # 核心修改：将获取到的窗口名转为小写并去除首尾空格，进行严格全等判断
-        if title.lower().strip() == "hololive-dreams":
-            target_title = title
-            break
+def find_game_window():
+    """Return the real game window using an exact title match.
 
-    if not target_title:
+    ``getWindowsWithTitle`` performs a substring search.  A browser tab or
+    Explorer window containing the repository name therefore used to win the
+    race and get captured instead of the game.  Compare every returned window
+    title exactly and prefer the largest exact match.
+    """
+    expected = GAME_TITLE.casefold().strip()
+    matches = [
+        win for win in gw.getAllWindows()
+        if win.title.casefold().strip() == expected and getattr(win, "_hWnd", None)
+    ]
+    if not matches:
+        return None
+    return max(matches, key=lambda win: max(0, win.width) * max(0, win.height))
+
+
+def _get_client_geometry(hwnd):
+    rect = wintypes.RECT()
+    origin = wintypes.POINT(0, 0)
+    if not _user32.GetClientRect(hwnd, ctypes.byref(rect)):
+        raise ctypes.WinError()
+    if not _user32.ClientToScreen(hwnd, ctypes.byref(origin)):
+        raise ctypes.WinError()
+    return origin.x, origin.y, rect.right - rect.left, rect.bottom - rect.top
+
+
+def _capture_client_with_printwindow(hwnd, width, height):
+    """Capture a client area even when another window covers the game."""
+    window_dc = _user32.GetDC(hwnd)
+    memory_dc = bitmap = old_bitmap = None
+    try:
+        if not window_dc:
+            raise ctypes.WinError()
+        memory_dc = _gdi32.CreateCompatibleDC(window_dc)
+        bitmap = _gdi32.CreateCompatibleBitmap(window_dc, width, height)
+        if not memory_dc or not bitmap:
+            raise ctypes.WinError()
+        old_bitmap = _gdi32.SelectObject(memory_dc, bitmap)
+
+        # PW_CLIENTONLY | PW_RENDERFULLCONTENT. This works for the game's
+        # Chromium/DirectX-backed window and avoids desktop occlusion.
+        if not _user32.PrintWindow(hwnd, memory_dc, 0x00000001 | 0x00000002):
+            raise RuntimeError("PrintWindow failed")
+
+        byte_count = width * height * 4
+        buffer = ctypes.create_string_buffer(byte_count)
+        if _gdi32.GetBitmapBits(bitmap, byte_count, buffer) != byte_count:
+            raise RuntimeError("GetBitmapBits returned an incomplete frame")
+        frame = np.frombuffer(buffer, dtype=np.uint8).reshape(height, width, 4)
+        frame = frame[:, :, :3].copy()  # BGRA -> BGR by dropping alpha.
+        if frame.size == 0 or float(frame.mean()) < 1.0:
+            raise RuntimeError("PrintWindow returned a blank frame")
+        return frame
+    finally:
+        if old_bitmap and memory_dc:
+            _gdi32.SelectObject(memory_dc, old_bitmap)
+        if bitmap:
+            _gdi32.DeleteObject(bitmap)
+        if memory_dc:
+            _gdi32.DeleteDC(memory_dc)
+        if window_dc:
+            _user32.ReleaseDC(hwnd, window_dc)
+
+
+def capture_game_window():
+    global _capture_context
+    win = find_game_window()
+    if win is None:
+        _capture_context = None
         return None, 0, 0
 
-    win = gw.getWindowsWithTitle(target_title)[0]
     if win.isMinimized:
         win.restore()
         time.sleep(0.5)
 
-    monitor = {"top": win.top, "left": win.left, "width": win.width, "height": win.height}
-    with mss.MSS() as sct:
-        img = np.array(sct.grab(monitor))
-        return cv2.cvtColor(img, cv2.COLOR_BGRA2BGR), win.left, win.top
+    hwnd = win._hWnd
+    try:
+        left, top, width, height = _get_client_geometry(hwnd)
+        if width < 640 or height < 360:
+            raise RuntimeError(f"游戏客户区尺寸异常: {width}x{height}")
+        img = _capture_client_with_printwindow(hwnd, width, height)
+    except Exception as exc:
+        # Fallback for Windows versions/drivers where PrintWindow is disabled.
+        # Bring the exact game window forward before using a desktop capture.
+        print(f"[警告] 后台窗口截图失败，切换到前台截图: {exc}")
+        _bring_game_to_front(hwnd)
+        time.sleep(0.2)
+        left, top, width, height = _get_client_geometry(hwnd)
+        monitor = {"top": top, "left": left, "width": width, "height": height}
+        with mss.MSS() as sct:
+            img = cv2.cvtColor(np.array(sct.grab(monitor)), cv2.COLOR_BGRA2BGR)
+
+    _capture_context = {
+        "hwnd": hwnd,
+        "width": width,
+        "height": height,
+    }
+    normalized = cv2.resize(img, (REFERENCE_WIDTH, REFERENCE_HEIGHT), interpolation=cv2.INTER_CUBIC)
+    return normalized, left, top
+
+
+def _bring_game_to_front(hwnd):
+    if not hwnd or not _user32.IsWindow(hwnd):
+        return False
+    _user32.ShowWindowAsync(hwnd, 9)  # SW_RESTORE
+    _user32.BringWindowToTop(hwnd)
+    _user32.SetForegroundWindow(hwnd)
+    # A short topmost -> non-topmost transition also handles windows that were
+    # visually above the foreground window on multi-monitor setups.
+    flags = 0x0001 | 0x0002 | 0x0040  # NOSIZE | NOMOVE | SHOWWINDOW
+    _user32.SetWindowPos(hwnd, wintypes.HWND(-1), 0, 0, 0, 0, flags)
+    _user32.SetWindowPos(hwnd, wintypes.HWND(-2), 0, 0, 0, 0, flags)
+    return True
 
 
 def safe_click(rel_x, rel_y, win_left, win_top):
+    if not _capture_context:
+        print("[警告] 尚未取得有效游戏窗口，取消点击。")
+        return False
+
+    hwnd = _capture_context["hwnd"]
+    if not _bring_game_to_front(hwnd):
+        print("[警告] 游戏窗口已失效，取消点击。")
+        return False
+
+    # Match coordinates are in the normalized 1920x1080 frame. Transform them
+    # back to the current client size, then query the current screen origin in
+    # case the user moved the game window since the frame was captured.
+    try:
+        client_left, client_top, client_width, client_height = _get_client_geometry(hwnd)
+    except Exception as exc:
+        print(f"[警告] 无法读取游戏窗口坐标，取消点击: {exc}")
+        return False
+
     offset_x = random.randint(-4, 4)
     offset_y = random.randint(-4, 4)
 
-    target_x = win_left + rel_x + offset_x
-    target_y = win_top + rel_y + offset_y
+    target_x = client_left + round(rel_x * client_width / REFERENCE_WIDTH) + offset_x
+    target_y = client_top + round(rel_y * client_height / REFERENCE_HEIGHT) + offset_y
 
     pydirectinput.moveTo(target_x, target_y)
     time.sleep(random.uniform(0.02, 0.05))
@@ -190,9 +376,11 @@ def safe_click(rel_x, rel_y, win_left, win_top):
     pydirectinput.mouseUp()
 
     time.sleep(random.uniform(0.05, 0.1))
+    return True
 
 
 def find_and_click_icon(screen_bgr, tpl_path, win_left, win_top, threshold=0.80):
+    tpl_path = os.fspath(tpl_path)
     if not os.path.exists(tpl_path):
         print(f"❌ 找不到图标文件: {tpl_path}")
         return False
@@ -344,7 +532,7 @@ def save_daily_data(coins, fails):
 def auto_play_loop():
     global upcoming_card_val
     counter = HighLowCounter()
-    card_rec = CardRecognizer("templates")
+    card_rec = CardRecognizer(TEMPLATE_DIR)
     daily_coins, daily_fails = load_daily_data()
     net_profit = daily_coins - (daily_fails * 50)
     print(f"开始自动挂机... 当日累计代币: {daily_coins} | 累计失败: {daily_fails} 次 | 今日净利润: {net_profit}")
@@ -411,7 +599,7 @@ def auto_play_loop():
                     time.sleep(0.15)
 
                 time.sleep(0.3)
-                find_and_click_icon(img, "templates/icons/tpl_replace.png", win_left, win_top)
+                find_and_click_icon(img, TPL_REPLACE, win_left, win_top)
                 time.sleep(1)
 
         elif current_state == "TAP_TO_PROCEED":
@@ -458,13 +646,13 @@ def auto_play_loop():
 
                     print(f"🎉 终极目标达成！在手奖金已达 {current_cashout} (超1w)，安全提现大丰收！")
 
-                    find_and_click_icon(img, "templates/icons/tpl_cross.png", win_left, win_top)
+                    find_and_click_icon(img, TPL_CROSS, win_left, win_top)
 
                 else:
 
                     print(f"🚀 冲刺期继续追击（无视胜率，目标在手1w）！当前在手仅 {current_cashout}，冲刺 {next_reward}！")
 
-                    find_and_click_icon(img, "templates/icons/tpl_check.png", win_left, win_top, threshold=0.55)
+                    find_and_click_icon(img, TPL_CHECK, win_left, win_top, threshold=0.55)
 
 
             # 【规则 2：平稳垫刀期】总金币未达到 19800，严格控分慢慢垫
@@ -478,7 +666,7 @@ def auto_play_loop():
                     print(
                         f"🛑 警报：提现(+{current_cashout})在安全线内，但再翻倍(+{next_reward})总额将达 {daily_coins + next_reward} 提前破限！果断收手垫刀！")
 
-                    find_and_click_icon(img, "templates/icons/tpl_cross.png", win_left, win_top)
+                    find_and_click_icon(img, TPL_CROSS, win_left, win_top)
 
 
                 # 2. 如果当前现金已经不慎超过了 19800（极端天胡开局）
@@ -489,14 +677,14 @@ def auto_play_loop():
 
                         print(f"🎉 意外天胡！垫刀途中在手直接达 {current_cashout} (超1w)，直接收手大丰收！")
 
-                        find_and_click_icon(img, "templates/icons/tpl_cross.png", win_left, win_top)
+                        find_and_click_icon(img, TPL_CROSS, win_left, win_top)
 
                     else:
 
                         print(
                             f"⚠️ 提现此笔(+{current_cashout})总额将达 {daily_coins + current_cashout} 破限且未破万！拒绝提现，强行搏翻倍！")
 
-                        find_and_click_icon(img, "templates/icons/tpl_check.png", win_left, win_top, threshold=0.55)
+                        find_and_click_icon(img, TPL_CHECK, win_left, win_top, threshold=0.55)
 
 
                 # 3. 正常发育，胜率低见好就收
@@ -505,7 +693,7 @@ def auto_play_loop():
 
                     print(f"🛑 发育局胜率太低 ({win_rate:.2%})，提现 {current_cashout} 垫刀！")
 
-                    find_and_click_icon(img, "templates/icons/tpl_cross.png", win_left, win_top)
+                    find_and_click_icon(img, TPL_CROSS, win_left, win_top)
 
 
                 # 4. 利润安全且下一把翻倍仍在安全线内，继续追击
@@ -514,7 +702,7 @@ def auto_play_loop():
 
                     print(f"🔥 利润安全且再翻倍不会超限，普通局继续追击翻倍！")
 
-                    find_and_click_icon(img, "templates/icons/tpl_check.png", win_left, win_top, threshold=0.55)
+                    find_and_click_icon(img, TPL_CHECK, win_left, win_top, threshold=0.55)
 
             time.sleep(0.6)
         elif current_state == "HIGH_LOW":
@@ -538,14 +726,14 @@ def auto_play_loop():
                         print(f"\n明牌: {single_card.rank}, 选: {best_choice.upper()} (胜率: {rate:.2%})")
 
                         if best_choice == "high":
-                            find_and_click_icon(img, "templates/icons/tpl_high.png", win_left, win_top)
+                            find_and_click_icon(img, TPL_HIGH, win_left, win_top)
                         else:
-                            find_and_click_icon(img, "templates/icons/tpl_low.png", win_left, win_top)
+                            find_and_click_icon(img, TPL_LOW, win_left, win_top)
 
                         # === 2. 状态对比追踪连拍 ===
                         print("[预判] 启动多帧对比追踪...")
                         upcoming_card_val = None
-                        os.makedirs("debug", exist_ok=True)
+                        DEBUG_DIR.mkdir(exist_ok=True)
 
                         for i in range(25):
                             time.sleep(0.04)
@@ -569,7 +757,7 @@ def auto_play_loop():
                                                     f"[预判] 第 {i + 1} 帧追踪到新卡牌！下一张将是: {newest_card.rank}")
 
                                                 cx, cy, cw, ch = newest_rect
-                                                cv2.imwrite("debug/2_next_card.png",
+                                                cv2.imwrite(str(DEBUG_DIR / "2_next_card.png"),
                                                             flip_img[max(0, cy - 40):cy + ch + 40,
                                                             max(0, cx - 40):cx + cw + 40])
                                                 break
@@ -595,7 +783,7 @@ def auto_play_loop():
                 has_recorded_fail = True
 
             time.sleep(0.8)
-            find_and_click_icon(img, "templates/icons/tpl_check.png", win_left, win_top, threshold=0.55)
+            find_and_click_icon(img, TPL_CHECK, win_left, win_top, threshold=0.55)
             time.sleep(1)
 
         elif current_state == "RESULT":
@@ -614,7 +802,7 @@ def auto_play_loop():
                 has_tallied = True
 
             time.sleep(0.8)
-            find_and_click_icon(img, "templates/icons/tpl_check.png", win_left, win_top, threshold=0.55)
+            find_and_click_icon(img, TPL_CHECK, win_left, win_top, threshold=0.55)
             time.sleep(1)
 
 

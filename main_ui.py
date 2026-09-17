@@ -1,3 +1,12 @@
+import ctypes
+
+# Configure DPI before Tk or any capture/input library creates a window. This
+# keeps template coordinates aligned on scaled and multi-monitor desktops.
+try:
+    ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
+except Exception:
+    pass
+
 import tkinter as tk
 from tkinter import ttk
 import threading
@@ -10,7 +19,6 @@ from PIL import Image, ImageTk
 import keyboard
 
 import auto_bot
-import ctypes
 
 # 🚀 必须在窗口创建前执行：通知 Windows 这是一个独立应用，强制任务栏绑定自身图标
 try:
@@ -72,9 +80,9 @@ TRANSLATIONS = {
 
 
 def get_local_data():
-    if os.path.exists("daily_coins.json"):
+    if auto_bot.DATA_FILE.exists():
         try:
-            with open("daily_coins.json", "r", encoding="utf-8") as f:
+            with auto_bot.DATA_FILE.open("r", encoding="utf-8") as f:
                 data = json.load(f)
                 if data.get("date") == time.strftime("%Y-%m-%d"):
                     c = data.get("coins", 0)
@@ -143,14 +151,17 @@ class HololiveBotUI(tk.Tk):
         self.title(TRANSLATIONS[self.current_lang]["title"])
         # 🚀 替换这里的两行：优先加载 PNG 图标，任务栏永不退化为白纸
         try:
-            if os.path.exists("icon_transparent.png"):
-                self._app_icon = ImageTk.PhotoImage(file="icon_transparent.png")
+            transparent_icon = auto_bot.RESOURCE_DIR / "icon_transparent.png"
+            png_icon = auto_bot.RESOURCE_DIR / "icon.png"
+            ico_icon = auto_bot.RESOURCE_DIR / "icon.ico"
+            if transparent_icon.exists():
+                self._app_icon = ImageTk.PhotoImage(file=str(transparent_icon))
                 self.iconphoto(True, self._app_icon)
-            elif os.path.exists("icon.png"):
-                self._app_icon = ImageTk.PhotoImage(file="icon.png")
+            elif png_icon.exists():
+                self._app_icon = ImageTk.PhotoImage(file=str(png_icon))
                 self.iconphoto(True, self._app_icon)
-            elif os.path.exists("icon.ico"):
-                self.iconbitmap("icon.ico")
+            elif ico_icon.exists():
+                self.iconbitmap(str(ico_icon))
         except Exception as e:
             print(f"[警告] 图标加载失败: {e}")
 
@@ -163,8 +174,8 @@ class HololiveBotUI(tk.Tk):
         self.canvas = tk.Canvas(self, highlightthickness=0)
         self.canvas.pack(fill="both", expand=True)
 
-        self.bg_image_path = "background.png"
-        if os.path.exists(self.bg_image_path):
+        self.bg_image_path = auto_bot.RESOURCE_DIR / "background.png"
+        if self.bg_image_path.exists():
             self.original_bg = Image.open(self.bg_image_path)
         else:
             self.original_bg = Image.new('RGB', (450, 800), color='#F0F0F0')

@@ -6,4 +6,3 @@ pillow
 keyboard
 pygetwindow
 mss
-pydirectinput

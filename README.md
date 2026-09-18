@@ -18,9 +18,8 @@ YouTube：https://www.youtube.com/@hmr0000
 ### ✨ 核心特性
 - **最优留牌计算**：基于 Numba JIT 高性能加速，自动评估起手五张牌并计算期望收益最高的保留组合[cite: 2]。
 - **动态算牌记牌**：内置 High-Low 记牌引擎，根据剩余牌堆实时计算当前最高胜率分支[cite: 2]。
-- **风控止盈与极限冲刺**：
-  - **垫刀期**：胜率偏低时主动收手提现，确保单日收益平稳累积[cite: 2]。
-  - **冲刺期**：金币达 19,800 后自动解除风控，以追求单笔 10,000+ 巨额奖金为目标发起冲刺[cite: 2]。
+- **三种可选猜大小策略**：时间优先动态决策、兼容旧版的 60% 风控策略，以及从第一轮起始终继续的 **极速梭哈**。
+- **后台点击**：通过窗口消息直接向游戏发送点击，不移动或占用真实鼠标。
 - **收支监控**：自动记录失败轮次与门票扣除（50/局），实时核算净利润[cite: 1, 2]。
 - **多语言界面**：原生支持简体中文、繁體中文、English 及 日本語[cite: 1]。
 - **全局快捷键**：支持自定义全局停止热键（默认 `INSERT`），挂机时随时安全接管[cite: 1]。
@@ -41,11 +40,11 @@ pyinstaller -y -D -w -n "Hololive Dreams-Auto" -i icon.ico --collect-all ddddocr
 
 ### 📖 使用说明
 1. 启动游戏并保持游戏窗口未完全最小化（支持后台遮挡，但不可最小化至任务栏）[cite: 2]。
-2. 打开辅助工具，按需配置语言与快捷键[cite: 1]。
+2. 打开辅助工具，按需配置语言、猜大小策略与快捷键[cite: 1]。
 3. 点击 **「启动挂机」** 开始自动化运行[cite: 1]。
 4. 任何时候按下设定的停止快捷键均可安全关停[cite: 1]。
 
-> 兼容性说明：程序会精确匹配 `hololive-Dreams` 游戏窗口，支持 Windows 显示缩放、多显示器和其它窗口遮挡。执行鼠标点击时游戏会短暂置于前台，这是游戏接收输入所必需的。
+> 兼容性说明：程序会精确匹配 `hololive-Dreams` 游戏窗口，支持 Windows 显示缩放、多显示器和其它窗口遮挡。后台点击不会抢占真实鼠标；游戏窗口不可最小化。日志能确认 Windows 是否接受了点击消息，但 Unity 是否实际处理仍取决于游戏版本，需在游戏中验证。
 
 ### ⚠️ 免责声明
 - 本工具仅供 Python 编程学习、图像识别技术研究交流使用。
@@ -60,9 +59,8 @@ pyinstaller -y -D -w -n "Hololive Dreams-Auto" -i icon.ico --collect-all ddddocr
 ### ✨ 核心特色
 - **最佳留牌計算**：基於 Numba JIT 高效能加速，自動評估初始五張手牌並計算期望收益最高的保留組合[cite: 2]。
 - **動態算牌記牌**：內建 High-Low 算牌引擎，根據剩餘牌堆即時計算當前最高勝率選項[cite: 2]。
-- **風控止盈與極限衝刺**：
-  - **墊刀期**：勝率偏低時主動收手提現，確保單日代幣在安全線內穩定累積[cite: 2]。
-  - **衝刺期**：當代幣達到 19,800 後自動解除風控，鎖定單局 10,000+ 巨額獎金發起衝刺[cite: 2]。
+- **三種可選猜大小策略**：時間優先動態決策、相容舊版的 60% 風控策略，以及從第一輪起始終繼續的 **極速梭哈**。
+- **背景點擊**：透過視窗訊息直接向遊戲傳送點擊，不移動或占用實體滑鼠。
 - **收支與淨利監控**：自動記錄失敗次數與入場門票消耗（50/局），即時計算淨利潤[cite: 1, 2]。
 - **多語言介面**：原生支援簡體中文、繁體中文、English 及 日本語[cite: 1]。
 - **全域快捷鍵**：支援自訂全域停止快捷鍵（預設為 `INSERT`），掛機途中隨時安全接管[cite: 1]。
@@ -83,9 +81,11 @@ pyinstaller -y -D -w -n "Hololive Dreams-Auto" -i icon.ico --collect-all ddddocr
 
 ### 📖 使用說明
 1. 開啟遊戲並維持遊戲視窗未被完全最小化（可被其他視窗遮擋，但不可縮小至工作列）[cite: 2]。
-2. 開啟本輔助程式，依需求設定語言與停止快捷鍵[cite: 1]。
+2. 開啟本輔助程式，依需求設定語言、猜大小策略與停止快捷鍵[cite: 1]。
 3. 點擊 **「啟動掛機」** 進入全自動流程[cite: 1]。
 4. 任何時候按下設定的停止快捷鍵皆可安全停機[cite: 1]。
+
+> 相容性說明：遊戲視窗不可最小化。日誌可確認 Windows 是否接受了背景點擊訊息，但 Unity 是否實際處理仍取決於遊戲版本，需在遊戲內驗證。
 
 ### ⚠️ 免責聲明
 - 本工具僅供 Python 程式學習、電腦視覺技術研究交流使用。
@@ -100,9 +100,8 @@ An automated assistant and decision-making bot for the mini-game in *Hololive Dr
 ### ✨ Key Features
 - **Optimal Hand Selection**: Powered by Numba JIT acceleration to evaluate initial poker hands and retain the mathematically optimal combination[cite: 2].
 - **Dynamic Card Counting**: Tracks remaining cards in the deck during the High-Low game to determine real-time winning probabilities[cite: 2].
-- **Smart Risk Control & Sprint Mode**:
-  - **Staging Phase**: Automatically cashes out when odds are unfavorable to steadily build up bankroll[cite: 2].
-  - **Sprint Phase**: Unlocks aggressive play once total coins reach 19,800, pushing for cashouts of 10,000+ coins in a single run[cite: 2].
+- **Three Selectable High-Low Strategies**: time-priority dynamic decisions, the legacy 60% risk-control policy, and **Fast All-In**, which always continues from the first challenge prompt.
+- **Background Clicks**: sends window messages directly to the game without moving or occupying the physical mouse.
 - **Profit & Loss Tracking**: Automatically tracks failed runs and ticket fees (50 coins/entry), calculating net profit in real time[cite: 1, 2].
 - **Multilingual UI**: Native support for Simplified Chinese, Traditional Chinese, English, and Japanese[cite: 1].
 - **Global Stop Hotkey**: Supports customizable hotkeys (default `INSERT`) to safely halt the bot at any point[cite: 1].
@@ -123,9 +122,11 @@ pyinstaller -y -D -w -n "Hololive Dreams-Auto" -i icon.ico --collect-all ddddocr
 
 ### 📖 Instructions
 1. Launch the game and ensure the game window is not fully minimized[cite: 2].
-2. Open the bot UI and select your preferred language and stop hotkey[cite: 1].
+2. Open the bot UI and select your preferred language, High-Low strategy, and stop hotkey[cite: 1].
 3. Click **"Start Bot"** to begin automation[cite: 1].
 4. Press your configured stop hotkey at any time to safely exit the loop[cite: 1].
+
+> Compatibility: keep the game window unminimized. The log confirms whether Windows accepted a background-click message, but whether Unity processes it still depends on the game version and must be verified in-game.
 
 ### ⚠️ Disclaimer
 - This project is developed solely for educational, computer vision, and automation research purposes.
@@ -140,9 +141,8 @@ pyinstaller -y -D -w -n "Hololive Dreams-Auto" -i icon.ico --collect-all ddddocr
 ### ✨ 主な機能
 - **ポーカー最適手札計算**：Numba JITによる高速演算で、配られた5枚の手札から期待値が最大となるキープカードを自動選定します[cite: 2]。
 - **動的カードカウンティング**：ハイ＆ロー中に残りの山札を追跡し、リアルタイムの勝率に基づき最適な選択（High / Low）を行います[cite: 2]。
-- **リスク管理とスプリントモード**：
-  - **安定期**：勝率が低い場合は無理をせず利益を確定（ドロップ）し、目標コインまで着実に貯蓄します[cite: 2]。
-  - **スプリント期**：累計コインが19,800に達するとリスク制限を解除し、1撃10,000以上の大量獲得を目指して強気に挑戦します[cite: 2]。
+- **3種類のハイ＆ロー戦略**：時間優先の動的判断、旧版互換の60%リスク管理、最初から常に続行する **最速オールイン** を選択できます。
+- **バックグラウンドクリック**：実際のマウスを移動・占有せず、ウィンドウメッセージをゲームへ直接送信します。
 - **収支・利益トラッキング**：失敗回数と入場料（1回あたり50コイン）の損失を自動集計し、当日の純利益をリアルタイムで表示します[cite: 1, 2]。
 - **多言語対応**：簡体字中国語、繁体字中国語、英語、日本語に対応[cite: 1]。
 - **グローバル停止ショートカット**：任意のキー（初期設定：`INSERT`）でいつでも安全に停止できます[cite: 1]。
@@ -163,9 +163,11 @@ pyinstaller -y -D -w -n "Hololive Dreams-Auto" -i icon.ico --collect-all ddddocr
 
 ### 📖 使用方法
 1. ゲームを起動し、ウィンドウが完全に最小化されていない状態にします（他ウィンドウの背面に隠れていても動作可能）[cite: 2]。
-2. ツールを起動し、言語や停止ショートカットキーを設定します[cite: 1]。
+2. ツールを起動し、言語、ハイ＆ロー戦略、停止ショートカットキーを設定します[cite: 1]。
 3. **「起動」** ボタンを押すと自動周回が開始されます[cite: 1]。
 4. 途中で停止したい場合は、設定した停止キーを押すと安全に終了します[cite: 1]。
+
+> 互換性：ゲームウィンドウは最小化しないでください。ログでは Windows がバックグラウンドクリックを受信したか確認できますが、Unity が実際に処理するかはゲームのバージョンに依存するため、ゲーム内での確認が必要です。
 
 ### ⚠️ 免責事項
 - 本ツールはPythonプログラミング、画像認識、および自動化技術の研究・学習を目的として作成されています。

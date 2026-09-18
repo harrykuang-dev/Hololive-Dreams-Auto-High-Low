@@ -12,7 +12,7 @@ from datetime import datetime
 
 
 class LoopTests(unittest.TestCase):
-    def run_states(self, states, coins=19600, failed_click=False):
+    def run_states(self, states, coins=19600, failed_click=False, mode='time_target'):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder)
             config=Path(auto_bot.__file__).with_name('strategy_config.json').read_text()
@@ -35,7 +35,7 @@ class LoopTests(unittest.TestCase):
                  patch.object(auto_bot,'calculate_best',return_value=(SimpleNamespace(held_indices=()),[])), \
                  patch.object(auto_bot,'find_and_click_icon',side_effect=click), \
                  patch.object(auto_bot.time,'sleep'), patch('builtins.print'):
-                auto_bot.auto_play_loop('time_target')
+                auto_bot.auto_play_loop(mode)
             ledger=json.loads((root/'daily_coins.json').read_text())
             events=[json.loads(line) for line in (root/'strategy_events.jsonl').read_text().splitlines()]
             return ledger,events,calls
@@ -63,6 +63,17 @@ class LoopTests(unittest.TestCase):
     def test_takeover_at_existing_failure_does_not_charge(self):
         ledger,_,_=self.run_states(['FAIL','FAIL','FULL'])
         self.assertEqual(ledger['fails'],0)
+
+    def test_all_in_mode_uses_the_challenge_button(self):
+        _,events,calls=self.run_states(
+            ['HOLD_CARDS','ASK_CHALLENGE','ASK_CHALLENGE','FULL'],
+            coins=0,
+            mode='all_in',
+        )
+        self.assertIn(auto_bot.TPL_CHECK, calls)
+        decision = next(e for e in events if e['event'] == 'decision')
+        self.assertEqual(decision['mode'], 'all_in')
+        self.assertEqual(decision['selected'], 'challenge')
 
 
 if __name__=='__main__':

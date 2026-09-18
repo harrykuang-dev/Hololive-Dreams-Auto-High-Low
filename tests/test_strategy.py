@@ -3,8 +3,8 @@ import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
-from high_low_strategy import TimePolicy, legacy_decision, choice_and_rate
-from strategy_runtime import DailyLedger, StableNumber, atomic_json
+from high_low_strategy import TimePolicy, all_in_decision, legacy_decision, choice_and_rate
+from strategy_runtime import DailyLedger, StableNumber, atomic_json, load_config
 
 
 class StrategyTests(unittest.TestCase):
@@ -39,6 +39,23 @@ class StrategyTests(unittest.TestCase):
     def test_sprint_has_no_ten_thousand_cashout(self):
         for cash in (200, 10000, 102400, 104857600):
             self.assertEqual(self.policy.decide(19800,cash,{2:1,14:1},8).action,'challenge')
+
+    def test_all_in_always_challenges_readable_rewards(self):
+        for cash in (100, 200, 10000, 104857600):
+            decision = all_in_decision(cash)
+            self.assertEqual(decision.action, 'challenge')
+            self.assertEqual(decision.reason, 'all_in_until_round_ends')
+
+    def test_all_in_waits_for_a_readable_reward(self):
+        self.assertEqual(all_in_decision(0).action, 'wait')
+
+    def test_config_accepts_all_in_mode(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            config = json.loads(Path(__file__).resolve().parents[1].joinpath('strategy_config.json').read_text())
+            config['mode'] = 'all_in'
+            atomic_json(root / 'strategy_config.json', config)
+            self.assertEqual(load_config(root, root)['mode'], 'all_in')
 
     def test_preserve_final_round(self):
         self.assertEqual(self.policy.decide(19000,700,{14:4},2).action,'cashout')

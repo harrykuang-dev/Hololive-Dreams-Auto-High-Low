@@ -2,7 +2,6 @@ import pygetwindow as gw
 import mss
 import numpy as np
 import cv2
-import pydirectinput
 import ctypes
 from ctypes import wintypes
 import random
@@ -15,7 +14,13 @@ import ddddocr
 
 from recognizer import CardRecognizer
 from poker_core import calculate_best, JOKER_ID
-from strategy_runtime import StrategySession, StableNumber
+from strategy_runtime import (
+    ALL_IN_MODE,
+    LEGACY_MODE,
+    TIME_TARGET_MODE,
+    StrategySession,
+    StableNumber,
+)
 from high_low_strategy import TARGET, DAILY_CAP
 
 try:
@@ -56,7 +61,7 @@ def resource_path(*parts):
 
 try:
     # Must happen before Tk creates a window. It keeps Win32 coordinates,
-    # PrintWindow output and SendInput coordinates in the same DPI space.
+    # PrintWindow output and background-click coordinates in the same DPI space.
     ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
 except Exception:
     pass
@@ -78,6 +83,12 @@ _user32.PrintWindow.argtypes = [wintypes.HWND, wintypes.HDC, wintypes.UINT]
 _user32.PrintWindow.restype = wintypes.BOOL
 _user32.IsWindow.argtypes = [wintypes.HWND]
 _user32.IsWindow.restype = wintypes.BOOL
+_user32.ScreenToClient.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.POINT)]
+_user32.ScreenToClient.restype = wintypes.BOOL
+_user32.ChildWindowFromPointEx.argtypes = [wintypes.HWND, wintypes.POINT, wintypes.UINT]
+_user32.ChildWindowFromPointEx.restype = wintypes.HWND
+_user32.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+_user32.PostMessageW.restype = wintypes.BOOL
 _user32.ShowWindowAsync.argtypes = [wintypes.HWND, ctypes.c_int]
 _user32.SetForegroundWindow.argtypes = [wintypes.HWND]
 _user32.BringWindowToTop.argtypes = [wintypes.HWND]
@@ -94,6 +105,16 @@ _gdi32.GetBitmapBits.argtypes = [wintypes.HBITMAP, wintypes.LONG, wintypes.LPVOI
 _gdi32.GetBitmapBits.restype = wintypes.LONG
 _gdi32.DeleteObject.argtypes = [wintypes.HGDIOBJ]
 _gdi32.DeleteDC.argtypes = [wintypes.HDC]
+
+# Win32 mouse messages are delivered to the game window without moving or
+# pressing the user's physical mouse cursor.
+WM_MOUSEMOVE = 0x0200
+WM_LBUTTONDOWN = 0x0201
+WM_LBUTTONUP = 0x0202
+MK_LBUTTON = 0x0001
+CWP_SKIPINVISIBLE = 0x0001
+CWP_SKIPDISABLED = 0x0002
+CWP_SKIPTRANSPARENT = 0x0004
 
 # === 动态寻框参数 ===
 CARD_WIDTH = 260
@@ -345,7 +366,35 @@ def _bring_game_to_front(hwnd):
     return True
 
 
-def safe_click(rel_x, rel_y, win_left, win_top):
+def _deepest_window_at_client_point(hwnd, client_x, client_y):
+    """Return the deepest visible child and coordinates local to that child."""
+    screen_point = wintypes.POINT(client_x, client_y)
+    if not _user32.ClientToScreen(hwnd, ctypes.byref(screen_point)):
+        raise ctypes.WinError()
+
+    target = hwnd
+    skip_flags = CWP_SKIPINVISIBLE | CWP_SKIPDISABLED | CWP_SKIPTRANSPARENT
+    while True:
+        local_point = wintypes.POINT(screen_point.x, screen_point.y)
+        if not _user32.ScreenToClient(target, ctypes.byref(local_point)):
+            raise ctypes.WinError()
+        child = _user32.ChildWindowFromPointEx(target, local_point, skip_flags)
+        if not child or child == target:
+            return target, local_point.x, local_point.y
+        target = child
+
+
+def _mouse_lparam(x, y):
+    """Pack signed client coordinates into a Win32 mouse-message LPARAM."""
+    return ((int(y) & 0xFFFF) << 16) | (int(x) & 0xFFFF)
+
+
+def safe_click(rel_x, rel_y, win_left=None, win_top=None):
+    """Click the game in the background without touching the real cursor.
+
+    Coordinates use the normalized 1920x1080 recognition space.  The legacy
+    window-origin arguments remain accepted for existing call sites.
+    """
     if not bot_running:
         return False
     if not _capture_context:
@@ -353,31 +402,42 @@ def safe_click(rel_x, rel_y, win_left, win_top):
         return False
 
     hwnd = _capture_context["hwnd"]
-    if not _bring_game_to_front(hwnd):
+    if not hwnd or not _user32.IsWindow(hwnd):
         print("[警告] 游戏窗口已失效，取消点击。")
         return False
 
-    # Match coordinates are in the normalized 1920x1080 frame. Transform them
-    # back to the current client size, then query the current screen origin in
-    # case the user moved the game window since the frame was captured.
+    # PostMessage uses client coordinates, so the game can stay covered and the
+    # cursor position and physical button state remain unchanged.
     try:
-        client_left, client_top, client_width, client_height = _get_client_geometry(hwnd)
+        _, _, client_width, client_height = _get_client_geometry(hwnd)
+        if client_width <= 0 or client_height <= 0:
+            raise RuntimeError(f"游戏客户区尺寸异常: {client_width}x{client_height}")
     except Exception as exc:
-        print(f"[警告] 无法读取游戏窗口坐标，取消点击: {exc}")
+        print(f"[警告] 无法读取游戏窗口客户区，取消点击: {exc}")
         return False
 
     offset_x = random.randint(-4, 4)
     offset_y = random.randint(-4, 4)
 
-    target_x = client_left + round(rel_x * client_width / REFERENCE_WIDTH) + offset_x
-    target_y = client_top + round(rel_y * client_height / REFERENCE_HEIGHT) + offset_y
+    client_x = round(rel_x * client_width / REFERENCE_WIDTH) + offset_x
+    client_y = round(rel_y * client_height / REFERENCE_HEIGHT) + offset_y
+    client_x = max(0, min(client_width - 1, client_x))
+    client_y = max(0, min(client_height - 1, client_y))
 
-    pydirectinput.moveTo(target_x, target_y)
-    time.sleep(random.uniform(0.02, 0.05))
-
-    pydirectinput.mouseDown()
-    time.sleep(random.uniform(0.05, 0.08))
-    pydirectinput.mouseUp()
+    try:
+        target_hwnd, target_x, target_y = _deepest_window_at_client_point(hwnd, client_x, client_y)
+        lparam = _mouse_lparam(target_x, target_y)
+        if not _user32.PostMessageW(target_hwnd, WM_MOUSEMOVE, 0, lparam):
+            raise ctypes.WinError()
+        time.sleep(random.uniform(0.02, 0.05))
+        if not _user32.PostMessageW(target_hwnd, WM_LBUTTONDOWN, MK_LBUTTON, lparam):
+            raise ctypes.WinError()
+        time.sleep(random.uniform(0.05, 0.08))
+        if not _user32.PostMessageW(target_hwnd, WM_LBUTTONUP, 0, lparam):
+            raise ctypes.WinError()
+    except Exception as exc:
+        print(f"[警告] 后台点击消息发送失败，未使用真实鼠标回退: {exc}")
+        return False
 
     time.sleep(random.uniform(0.05, 0.1))
     return True
@@ -396,8 +456,11 @@ def find_and_click_icon(screen_bgr, tpl_path, win_left, win_top, threshold=0.80)
 
     if max_val >= threshold:
         h, w = tpl_img.shape
-        print(f"👉 成功触发点击: {os.path.basename(tpl_path)} (匹配度: {max_val:.2f} >= {threshold})")
-        return safe_click(max_loc[0] + w // 2, max_loc[1] + h // 2, win_left, win_top)
+        if safe_click(max_loc[0] + w // 2, max_loc[1] + h // 2, win_left, win_top):
+            print(f"👉 已发送后台点击: {os.path.basename(tpl_path)} (匹配度: {max_val:.2f} >= {threshold})")
+            return True
+        print(f"❌ 已匹配图标，但后台点击消息发送失败: {os.path.basename(tpl_path)}")
+        return False
     else:
         print(f"⚠️ 放弃点击: {os.path.basename(tpl_path)} (当前匹配度仅 {max_val:.2f}，达不到 {threshold})")
         return False
@@ -570,7 +633,12 @@ def auto_play_loop(mode=None):
     def check_button(img, left, top):
         return find_and_click_icon(img, TPL_CHECK, left, top, threshold=.80)
 
-    print(f"[策略] {session.mode} | 每日目标 19,800；达标后持续翻倍至游戏上限")
+    mode_descriptions = {
+        TIME_TARGET_MODE: "时间优先动态决策；达标后持续翻倍至游戏上限",
+        LEGACY_MODE: "旧版 60% 风控；达标后以在手 10,000 为止盈目标",
+        ALL_IN_MODE: "极速梭哈；从第一轮起始终继续至本轮自然结束",
+    }
+    print(f"[策略] {session.mode} | {mode_descriptions[session.mode]}")
     print("[账目] 净利润栏沿用旧版失败门票估算；目标按已结算奖励计算。")
     stats()
     while bot_running and ledger.data['coins'] < DAILY_CAP:

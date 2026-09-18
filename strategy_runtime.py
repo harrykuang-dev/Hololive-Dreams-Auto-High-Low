@@ -5,7 +5,13 @@ import os
 import time
 from pathlib import Path
 from dataclasses import asdict
-from high_low_strategy import TimePolicy, TARGET, legacy_decision, choice_and_rate
+from high_low_strategy import TimePolicy, TARGET, all_in_decision, legacy_decision, choice_and_rate
+
+
+TIME_TARGET_MODE = 'time_target'
+LEGACY_MODE = 'legacy'
+ALL_IN_MODE = 'all_in'
+STRATEGY_MODES = (TIME_TARGET_MODE, LEGACY_MODE, ALL_IN_MODE)
 
 
 def atomic_json(path, value):
@@ -20,7 +26,7 @@ def load_config(app_dir, resource_dir):
     if not path.exists():
         path = Path(resource_dir) / 'strategy_config.json'
     config = json.loads(path.read_text(encoding='utf-8'))
-    if config.get('mode') not in ('legacy', 'time_target'):
+    if config.get('mode') not in STRATEGY_MODES:
         raise ValueError('Unknown strategy mode')
     if config.get('target') != 19800 or config.get('daily_cap') != 20000:
         raise ValueError('This model requires target=19800 and daily_cap=20000')
@@ -65,7 +71,7 @@ class StrategySession:
     def __init__(self, app_dir, resource_dir, mode=None):
         self.config = load_config(app_dir, resource_dir)
         self.mode = mode or self.config['mode']
-        if self.mode not in ('legacy', 'time_target'):
+        if self.mode not in STRATEGY_MODES:
             raise ValueError('Unknown strategy')
         self.ledger = DailyLedger(Path(app_dir) / 'daily_coins.json', self.config['day_reset_hour'])
         self.log_path = Path(app_dir) / 'strategy_events.jsonl'
@@ -87,9 +93,15 @@ class StrategySession:
         rate = choice_and_rate(deck, rank)[1] if rank is not None else None
         old = legacy_decision(coins, cash, rate)
         new = self.policy.decide(coins, cash, deck, rank)
-        selected = old if self.mode == 'legacy' else new
+        all_in = all_in_decision(cash)
+        selected = {
+            LEGACY_MODE: old,
+            TIME_TARGET_MODE: new,
+            ALL_IN_MODE: all_in,
+        }[self.mode]
         self.event('decision', coins=coins, cash=cash, rank=rank, deck=deck, rate=rate,
-                   legacy=asdict(old), time_target=asdict(new), selected=selected.action)
+                   legacy=asdict(old), time_target=asdict(new), all_in=asdict(all_in),
+                   selected=selected.action)
         return selected
 
 

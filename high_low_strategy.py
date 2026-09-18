@@ -34,6 +34,13 @@ def legacy_decision(coins, cash, rate):
     return Decision('cashout' if rate < .60 else 'challenge', 'legacy_60_percent')
 
 
+def all_in_decision(cash):
+    """Always continue a readable High-Low run until the game ends it."""
+    if cash <= 0:
+        return Decision('wait', 'unreadable_reward')
+    return Decision('challenge', 'all_in_until_round_ends')
+
+
 def choice_and_rate(deck, rank):
     high = sum(n for r, n in deck.items() if r > rank)
     low = sum(n for r, n in deck.items() if r < rank)

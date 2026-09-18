@@ -20,7 +20,7 @@ from PIL import Image, ImageTk
 import keyboard
 
 import auto_bot
-from strategy_runtime import load_config, atomic_json, DailyLedger
+from strategy_runtime import load_config, atomic_json, DailyLedger, STRATEGY_MODES
 
 # 🚀 必须在窗口创建前执行：通知 Windows 这是一个独立应用，强制任务栏绑定自身图标
 try:
@@ -33,6 +33,10 @@ TRANSLATIONS = {
     "zh": {
         "title": "Hololive Dreams 自动猜高低",
         "lang_label": "界面语言",
+        "strategy_label": "猜大小策略",
+        "strategy_time_target": "时间优先 → 最大翻倍",
+        "strategy_legacy": "旧版 60% → 奖金 10,000",
+        "strategy_all_in": "极速梭哈（始终继续）",
         "hotkey_label": "停止快捷键",
         "status_idle": "状态：等待启动",
         "coins_prefix": "金币：{coins} / 20000",
@@ -40,11 +44,16 @@ TRANSLATIONS = {
         "btn_start": "启动挂机",
         "btn_stop": "停止挂机",
         "btn_bg": "切换背景",
+        "btn_correct": "校正今日",
         "btn_running": "运行中..."
     },
     "tw": {
         "title": "Hololive Dreams 自動猜高低",
         "lang_label": "介面語言",
+        "strategy_label": "猜大小策略",
+        "strategy_time_target": "時間優先 → 最大翻倍",
+        "strategy_legacy": "舊版 60% → 獎金 10,000",
+        "strategy_all_in": "極速梭哈（始終繼續）",
         "hotkey_label": "停止快捷鍵",
         "status_idle": "狀態：等待啟動",
         "coins_prefix": "金幣：{coins} / 20000",
@@ -52,11 +61,16 @@ TRANSLATIONS = {
         "btn_start": "啟動掛機",
         "btn_stop": "停止掛機",
         "btn_bg": "切換背景",
+        "btn_correct": "校正今日",
         "btn_running": "運行中..."
     },
     "en": {
         "title": "Hololive Dreams Auto Bot",
         "lang_label": "Language",
+        "strategy_label": "High-Low Strategy",
+        "strategy_time_target": "Time Priority → Max Doubles",
+        "strategy_legacy": "Legacy 60% → 10,000",
+        "strategy_all_in": "Fast All-In (Always Continue)",
         "hotkey_label": "Stop Hotkey",
         "status_idle": "Status: Waiting",
         "coins_prefix": "Coins: {coins} / 20000",
@@ -64,11 +78,16 @@ TRANSLATIONS = {
         "btn_start": "Start Bot",
         "btn_stop": "Stop Bot",
         "btn_bg": "Toggle BG",
+        "btn_correct": "Correct Today",
         "btn_running": "Running..."
     },
     "ja": {
         "title": "Hololive Dreams 自動Bot",
         "lang_label": "言語",
+        "strategy_label": "ハイ＆ロー戦略",
+        "strategy_time_target": "時間優先 → 最大ダブル",
+        "strategy_legacy": "旧版 60% → 報酬 10,000",
+        "strategy_all_in": "最速オールイン（常に続行）",
         "hotkey_label": "停止ショートカット",
         "status_idle": "ステータス: 待機中",
         "coins_prefix": "コイン: {coins} / 20000",
@@ -76,6 +95,7 @@ TRANSLATIONS = {
         "btn_start": "起動",
         "btn_stop": "停止",
         "btn_bg": "背景切替",
+        "btn_correct": "本日分を修正",
         "btn_running": "実行中..."
     }
 }
@@ -150,7 +170,7 @@ class HololiveBotUI(tk.Tk):
 
         self.current_coins, self.current_fails, self.current_profit = get_local_data()
         self.strategy_config = load_config(auto_bot.APP_DIR, auto_bot.RESOURCE_DIR)
-        self.strategy_modes = ['time_target', 'legacy']
+        self.strategy_modes = list(STRATEGY_MODES)
 
         self.title(TRANSLATIONS[self.current_lang]["title"])
         # 🚀 替换这里的两行：优先加载 PNG 图标，任务栏永不退化为白纸
@@ -207,12 +227,16 @@ class HololiveBotUI(tk.Tk):
         self.btn_hotkey = ttk.Button(self, text=self.current_hotkey, command=self.start_listen_hotkey)
         self.hotkey_window = self.canvas.create_window(0, 0, window=self.btn_hotkey, anchor="e")
 
-        self.strategy_label_id = self.canvas.create_text(0, 0, text='翻倍策略', font=font_normal, anchor='w')
-        self.combo_strategy = ttk.Combobox(self, state='readonly', values=['時間優先 → 最大翻倍', '舊版 60% → 獎金 10,000'])
+        self.strategy_label_id = self.canvas.create_text(0, 0, font=font_normal, anchor='w')
+        self.combo_strategy = ttk.Combobox(
+            self,
+            state='readonly',
+            values=[TRANSLATIONS[self.current_lang][f"strategy_{mode}"] for mode in self.strategy_modes],
+        )
         self.combo_strategy.current(self.strategy_modes.index(self.strategy_config['mode']))
         self.combo_strategy.bind('<<ComboboxSelected>>', self.change_strategy)
         self.strategy_window = self.canvas.create_window(0, 0, window=self.combo_strategy, anchor='e')
-        self.btn_correct = ttk.Button(self, text='校正今日', command=self.correct_daily_coins)
+        self.btn_correct = ttk.Button(self, command=self.correct_daily_coins)
         self.correct_window = self.canvas.create_window(0, 0, window=self.btn_correct, anchor='e')
 
         keyboard.add_hotkey(self.current_hotkey, lambda: self.after(0, self.stop_bot))
@@ -413,9 +437,14 @@ class HololiveBotUI(tk.Tk):
         self.title(t["title"])
         self.canvas.itemconfig(self.title_id, text=t["title"])
         self.canvas.itemconfig(self.lang_label_id, text=t["lang_label"])
+        self.canvas.itemconfig(self.strategy_label_id, text=t["strategy_label"])
         self.canvas.itemconfig(self.hotkey_label_id, text=t["hotkey_label"])
 
+        strategy_index = self.combo_strategy.current()
+        self.combo_strategy.configure(values=[t[f"strategy_{mode}"] for mode in self.strategy_modes])
+        self.combo_strategy.current(max(0, strategy_index))
         self.btn_bg.configure(text=t["btn_bg"])
+        self.btn_correct.configure(text=t["btn_correct"])
         self.btn_exit.configure(text=t["btn_exit"])
 
         self.update_stats_display()

@@ -37,13 +37,15 @@ python main_ui.py
 ```powershell
 pyinstaller -y -D -w -n "Hololive Dreams-Auto" -i icon.ico --collect-all ddddocr --exclude-module torch --exclude-module scipy --exclude-module pandas --exclude-module matplotlib main_ui.py
 ```
-*打包完成后，将 `templates/` 目录、`background.png` 和 `icon.ico` 复制到生成的 `dist/Hololive Dreams-Auto/` 目录下即可分发使用[cite: 1, 2]。*
+*仓库内的 `.spec` 已自动打包模板、背景和图标，无需再手动复制资源。*
 
 ### 📖 使用说明
 1. 启动游戏并保持游戏窗口未完全最小化（支持后台遮挡，但不可最小化至任务栏）[cite: 2]。
 2. 打开辅助工具，按需配置语言与快捷键[cite: 1]。
 3. 点击 **「启动挂机」** 开始自动化运行[cite: 1]。
 4. 任何时候按下设定的停止快捷键均可安全关停[cite: 1]。
+
+> 兼容性说明：程序会精确匹配 `hololive-Dreams` 游戏窗口，支持 Windows 显示缩放、多显示器和其它窗口遮挡。执行鼠标点击时游戏会短暂置于前台，这是游戏接收输入所必需的。
 
 ### ⚠️ 免责声明
 - 本工具仅供 Python 编程学习、图像识别技术研究交流使用。

@@ -79,13 +79,15 @@ python main_ui.py
 ```powershell
 pyinstaller -y -D -w -n "Hololive Dreams-Auto" -i icon.ico --collect-all ddddocr --exclude-module torch --exclude-module scipy --exclude-module pandas --exclude-module matplotlib main_ui.py
 ```
-*打包完成後，請將 `templates/` 資料夾、`background.png` 及 `icon.ico` 複製至產生的 `dist/Hololive Dreams-Auto/` 目錄下即可直接執行[cite: 1, 2]。*
+*倉庫內的 `.spec` 已自動打包模板、背景和圖示，無需再手動複製資源。*
 
 ### 📖 使用說明
 1. 開啟遊戲並維持遊戲視窗未被完全最小化（可被其他視窗遮擋，但不可縮小至工作列）[cite: 2]。
 2. 開啟本輔助程式，依需求設定語言與停止快捷鍵[cite: 1]。
 3. 點擊 **「啟動掛機」** 進入全自動流程[cite: 1]。
 4. 任何時候按下設定的停止快捷鍵皆可安全停機[cite: 1]。
+
+> 相容性說明：程式會精確匹配 `hololive-Dreams` 遊戲視窗，支援 Windows 顯示縮放、多螢幕及其他視窗遮擋。執行滑鼠點擊時遊戲會短暫置於前景，這是遊戲接收輸入所必需的。
 
 ### ⚠️ 免責聲明
 - 本工具僅供 Python 程式學習、電腦視覺技術研究交流使用。
@@ -119,13 +121,15 @@ python main_ui.py
 ```powershell
 pyinstaller -y -D -w -n "Hololive Dreams-Auto" -i icon.ico --collect-all ddddocr --exclude-module torch --exclude-module scipy --exclude-module pandas --exclude-module matplotlib main_ui.py
 ```
-*After compilation, copy the `templates/` folder, `background.png`, and `icon.ico` into the generated `dist/Hololive Dreams-Auto/` directory[cite: 1, 2].*
+*The repository `.spec` file automatically bundles the templates, background, and icons; no manual resource copying is required.*
 
 ### 📖 Instructions
 1. Launch the game and ensure the game window is not fully minimized[cite: 2].
 2. Open the bot UI and select your preferred language and stop hotkey[cite: 1].
 3. Click **"Start Bot"** to begin automation[cite: 1].
 4. Press your configured stop hotkey at any time to safely exit the loop[cite: 1].
+
+> Compatibility: The bot matches the `hololive-Dreams` game window precisely and supports Windows display scaling, multiple monitors, and other windows covering the game. The game is briefly brought to the foreground when sending mouse input, which is required for the game to receive clicks.
 
 ### ⚠️ Disclaimer
 - This project is developed solely for educational, computer vision, and automation research purposes.
@@ -159,13 +163,15 @@ python main_ui.py
 ```powershell
 pyinstaller -y -D -w -n "Hololive Dreams-Auto" -i icon.ico --collect-all ddddocr --exclude-module torch --exclude-module scipy --exclude-module pandas --exclude-module matplotlib main_ui.py
 ```
-*ビルド完了後、`templates/` フォルダ、`background.png`、`icon.ico` を生成された `dist/Hololive Dreams-Auto/` ディレクトリ内に配置してください[cite: 1, 2]。*
+*リポジトリ内の `.spec` ファイルがテンプレート、背景、アイコンを自動的に同梱するため、リソースを手動でコピーする必要はありません。*
 
 ### 📖 使用方法
 1. ゲームを起動し、ウィンドウが完全に最小化されていない状態にします（他ウィンドウの背面に隠れていても動作可能）[cite: 2]。
 2. ツールを起動し、言語や停止ショートカットキーを設定します[cite: 1]。
 3. **「起動」** ボタンを押すと自動周回が開始されます[cite: 1]。
 4. 途中で停止したい場合は、設定した停止キーを押すと安全に終了します[cite: 1]。
+
+> 互換性：プログラムは `hololive-Dreams` ゲームウィンドウを正確に識別し、Windows の表示スケール、マルチモニター、他のウィンドウによる遮蔽に対応しています。マウス入力を送信する際、ゲームが入力を受け取るために一時的に前面へ移動します。
 
 ### ⚠️ 免責事項
 - 本ツールはPythonプログラミング、画像認識、および自動化技術の研究・学習を目的として作成されています。

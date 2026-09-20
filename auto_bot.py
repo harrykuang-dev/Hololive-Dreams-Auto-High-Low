@@ -16,6 +16,9 @@ import ddddocr
 from recognizer import CardRecognizer
 from poker_core import calculate_best, JOKER_ID
 from settlement import SettlementReader
+from reward_vision import read_challenge_number
+from challenge_reward import ChallengeRewardReader
+from phased_strategy import PhasedStrategy
 
 try:
     # Windows source-mode runs otherwise inherit a legacy console encoding and
@@ -438,57 +441,7 @@ def find_all_card_rects(img, search_zone):
 # OCR 引擎 1：用于提取浅紫底色上的黄色数字 (加入强制纠偏机制)
 # ---------------------------------------------------------
 def read_screen_number(img, search_zone):
-    sx, sy, sw, sh = search_zone
-    if sw == 0 or sh == 0:
-        return 0
-
-    roi = img[sy:sy + sh, sx:sx + sw]
-
-    # 1. 提取黄色区域
-    hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-    lower_yellow = np.array([15, 50, 50])
-    upper_yellow = np.array([45, 255, 255])
-    yellow_mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
-
-    # 🚀 核心修复：在超大搜索框中自动捕捉黄色像素的真实边界（紧致裁切）
-    points = cv2.findNonZero(yellow_mask)
-    if points is None:
-        return 0  # 画面中完全没有黄色元素
-
-    x, y, w, h = cv2.boundingRect(points)
-
-    # 过滤微小的噪点颗粒（至少要像个数字的宽高）
-    if w < 10 or h < 10:
-        return 0
-
-    # 留 8 像素的外边距，避免贴边裁剪损伤字形
-    pad = 8
-    x1 = max(0, x - pad)
-    y1 = max(0, y - pad)
-    x2 = min(yellow_mask.shape[1], x + w + pad)
-    y2 = min(yellow_mask.shape[0], y + h + pad)
-
-    cropped_mask = yellow_mask[y1:y2, x1:x2]
-
-    # 2. 颜色反转（变为白底黑字）并放大到 OCR 最适宜的尺寸
-    perfect_img = cv2.bitwise_not(cropped_mask)
-    perfect_img = cv2.resize(perfect_img, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
-
-    _, img_bytes = cv2.imencode('.png', perfect_img)
-    text = ocr.classification(img_bytes.tobytes())
-
-    # 3. 强制字符纠偏
-    text = text.upper()
-    text = text.replace('O', '0').replace('Q', '0').replace('D', '0').replace('U', '0')
-    text = text.replace('I', '1').replace('L', '1')
-    text = text.replace('S', '5')
-    text = text.replace('Z', '2')
-    text = text.replace('B', '8')
-
-    try:
-        return int(''.join(filter(str.isdigit, text)))
-    except ValueError:
-        return 0
+    return read_challenge_number(img, search_zone, ocr)
 
 # ---------------------------------------------------------
 # OCR 引擎 2：用于纯白底浅蓝字 (最终 RESULT 结算界面的 Coins)
@@ -524,13 +477,36 @@ def load_daily_data():
     return 0, 0
 
 
-def save_daily_data(coins, fails):
-    with open(DATA_FILE, 'w', encoding='utf-8') as f:
-        json.dump({"coins": coins, "fails": fails, "date": time.strftime("%Y-%m-%d")}, f)
+def load_daily_stage():
+    if not Path(DATA_FILE).exists():
+        return 0
+    with open(DATA_FILE, encoding='utf-8') as f:
+        data = json.load(f)
+    stage = data.get('phased_stage', 0) if data.get('date') == time.strftime('%Y-%m-%d') else 0
+    if type(stage) is not int or not 0 <= stage <= 3:
+        raise ValueError('保存的策略阶段无效，请检查 daily_coins.json')
+    return stage
 
 
-def auto_play_loop():
+def save_daily_data(coins, fails, stage=None):
+    # Save coins and stage together; legacy mode preserves the saved stage.
+    if stage is None:
+        stage = load_daily_stage()
+    temporary = Path(DATA_FILE).with_suffix('.tmp')
+    with temporary.open('w', encoding='utf-8') as f:
+        json.dump({"coins": coins, "fails": fails, "date": time.strftime("%Y-%m-%d"),
+                   "phased_stage": stage}, f)
+    os.replace(temporary, DATA_FILE)
+
+
+def auto_play_loop(mode='legacy'):
     global upcoming_card_val
+    if mode not in ('legacy', 'phased'):
+        raise ValueError('Unknown strategy mode')
+    phased = PhasedStrategy(load_daily_stage()) if mode == 'phased' else None
+    if phased is not None and phased.complete:
+        print('[三阶段] 今日三个目标均已完成，停止挂机。')
+        return
     counter = HighLowCounter()
     card_rec = CardRecognizer(TEMPLATE_DIR)
     daily_coins, daily_fails = load_daily_data()
@@ -539,7 +515,16 @@ def auto_play_loop():
 
     has_tallied = False
     settlement_reader = SettlementReader()
+    reward_reader = ChallengeRewardReader()
+    expected_cashout = None
     has_recorded_fail = False  # 防止在 FAIL 动画期间重复扣除门票
+
+    def request_cashout(frame, left, top, cash):
+        nonlocal expected_cashout
+        if find_and_click_icon(frame, TPL_CROSS, left, top):
+            expected_cashout = cash
+            return True
+        return False
 
     while daily_coins < 20000 and bot_running :
         img, win_left, win_top = capture_game_window()
@@ -554,6 +539,12 @@ def auto_play_loop():
         if current_state in ("START_BET", "HOLD_CARDS"):
             has_tallied = False
             settlement_reader.reset()
+            reward_reader.reset_round()
+            expected_cashout = None
+            if phased is not None:
+                phased.reset_round()
+        elif current_state in ('HIGH_LOW', 'FAIL', 'RESULT'):
+            reward_reader.reset_prompt()
         if current_state != "FAIL":
             has_recorded_fail = False
 
@@ -620,12 +611,25 @@ def auto_play_loop():
         elif current_state == "ASK_CHALLENGE":
 
             real_reward = read_screen_number(img, REWARD_ZONE)
-
-            next_reward = real_reward if real_reward > 0 else 200
+            next_reward = reward_reader.observe(real_reward, time.monotonic())
+            if next_reward is None:
+                time.sleep(.25)
+                continue
 
             current_cashout = next_reward // 2
 
             print(f"\n[账房] 当前在手现金: {current_cashout} | 挑战成功后将变为: {next_reward}")
+
+            if phased is not None:
+                action = phased.decide(daily_coins, current_cashout)
+                print(f'[三阶段] 第 {phased.stage + 1}/3 阶段 | 本局目标: {phased.round_target} | '
+                      + ('达到目标，收手入账' if action == 'cashout' else '继续翻倍'))
+                if action == 'cashout':
+                    request_cashout(img, win_left, win_top, current_cashout)
+                else:
+                    find_and_click_icon(img, TPL_CHECK, win_left, win_top, threshold=.55)
+                time.sleep(.6)
+                continue
 
             if upcoming_card_val is not None:
 
@@ -649,7 +653,7 @@ def auto_play_loop():
 
                     print(f"🎉 终极目标达成！在手奖金已达 {current_cashout} (超1w)，安全提现大丰收！")
 
-                    find_and_click_icon(img, TPL_CROSS, win_left, win_top)
+                    request_cashout(img, win_left, win_top, current_cashout)
 
                 else:
 
@@ -669,7 +673,7 @@ def auto_play_loop():
                     print(
                         f"🛑 警报：提现(+{current_cashout})在安全线内，但再翻倍(+{next_reward})总额将达 {daily_coins + next_reward} 提前破限！果断收手垫刀！")
 
-                    find_and_click_icon(img, TPL_CROSS, win_left, win_top)
+                    request_cashout(img, win_left, win_top, current_cashout)
 
 
                 # 2. 如果当前现金已经不慎超过了 19800（极端天胡开局）
@@ -680,7 +684,7 @@ def auto_play_loop():
 
                         print(f"🎉 意外天胡！垫刀途中在手直接达 {current_cashout} (超1w)，直接收手大丰收！")
 
-                        find_and_click_icon(img, TPL_CROSS, win_left, win_top)
+                        request_cashout(img, win_left, win_top, current_cashout)
 
                     else:
 
@@ -696,7 +700,7 @@ def auto_play_loop():
 
                     print(f"🛑 发育局胜率太低 ({win_rate:.2%})，提现 {current_cashout} 垫刀！")
 
-                    find_and_click_icon(img, TPL_CROSS, win_left, win_top)
+                    request_cashout(img, win_left, win_top, current_cashout)
 
 
                 # 4. 利润安全且下一把翻倍仍在安全线内，继续追击
@@ -794,7 +798,7 @@ def auto_play_loop():
                 if settlement_reader.started is None:
                     print("\n[状态] 结算界面，等待金额稳定后核对账目...")
                 amount = read_result_number(img, RESULT_REWARD_ZONE)
-                earned = settlement_reader.observe(amount, time.monotonic())
+                earned = settlement_reader.observe(amount, time.monotonic(), expected_cashout)
                 if earned is None:
                     time.sleep(.2)
                     continue
@@ -803,12 +807,20 @@ def auto_play_loop():
                 print(
                     f"💰 成功入账: {earned} ! 当前总金币: {daily_coins} | 累计失败: {daily_fails} 次 | 今日净利润: {net_profit}")
 
-                save_daily_data(daily_coins, daily_fails)
+                if phased is not None:
+                    next_stage = phased.stage_after_credit(earned)
+                    save_daily_data(daily_coins, daily_fails, next_stage)
+                    phased.stage = next_stage
+                else:
+                    save_daily_data(daily_coins, daily_fails)
                 has_tallied = True
 
             time.sleep(0.8)
             find_and_click_icon(img, TPL_CHECK, win_left, win_top, threshold=0.55)
             time.sleep(1)
+            if phased is not None and phased.complete:
+                print('[三阶段] 三个目标均已成功入账，停止挂机。')
+                break
 
 
 if __name__ == "__main__":

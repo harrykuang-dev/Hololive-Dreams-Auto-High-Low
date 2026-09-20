@@ -11,11 +11,12 @@ class SettlementReader:
         self.since = None
         self.samples = 0
 
-    def observe(self, amount, now):
+    def observe(self, amount, now, expected=None):
         if self.started is None:
             self.started = now
         # Never reuse samples collected during the initial animation window.
-        if now - self.started < 1.5 or amount <= 0:
+        if (now - self.started < 1.5 or amount <= 0
+                or (expected is not None and amount != expected)):
             self.candidate = self.since = None
             self.samples = 0
         elif amount != self.candidate:

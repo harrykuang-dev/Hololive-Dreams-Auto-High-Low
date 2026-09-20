@@ -228,6 +228,12 @@ class HololiveBotUI(tk.Tk):
         self.btn_bg_win = self.canvas.create_window(0, 0, window=self.btn_bg)
         self.btn_exit_win = self.canvas.create_window(0, 0, window=self.btn_exit)
 
+        self.combo_strategy = ttk.Combobox(self, state='readonly', values=[
+            '1.0.1 原版 / Legacy', '三阶段 / 12,800 → 6,400 → 12,800'])
+        self.combo_strategy.current(0)
+        self.strategy_window = self.canvas.create_window(0, 0, window=self.combo_strategy, anchor='nw')
+        self.active_mode = 'legacy'
+
         self.sys_redirector = RedirectText(self)
         self.original_stdout = sys.stdout
         sys.stdout = self.sys_redirector
@@ -368,14 +374,16 @@ class HololiveBotUI(tk.Tk):
         self.canvas.itemconfig(self.btn_exit_win, width=btn_w, height=btn_h)
 
         log_x = w * 0.06
-        log_y = h * 0.47
+        self.canvas.coords(self.strategy_window, w * .06, h * .445)
+        self.canvas.itemconfig(self.strategy_window, width=w * .88)
+        log_y = h * 0.50
         self.canvas.coords(self.log_text_id, log_x, log_y)
 
         # 🚀 修改 2：给日志文字设定最大物理宽度。当碰到距离右侧 15% 的边界时，强行折行！
         self.canvas.itemconfig(self.log_text_id, width=w * 0.85)
 
         self.canvas.coords(self.scrollbar_win, w * 0.98, log_y)
-        self.canvas.itemconfig(self.scrollbar_win, height=h * 0.48)
+        self.canvas.itemconfig(self.scrollbar_win, height=h * 0.45)
 
     def toggle_bg(self):
         self.show_bg = not self.show_bg
@@ -393,6 +401,7 @@ class HololiveBotUI(tk.Tk):
 
     def refresh_texts(self):
         t = TRANSLATIONS[self.current_lang]
+        self.combo_strategy.configure(state='disabled' if self.is_running else 'readonly')
         self.title(t["title"])
         self.canvas.itemconfig(self.title_id, text=t["title"])
         self.canvas.itemconfig(self.lang_label_id, text=t["lang_label"])
@@ -419,6 +428,7 @@ class HololiveBotUI(tk.Tk):
         self.refresh_texts()
 
     def start_bot(self):
+        self.active_mode = 'phased' if self.combo_strategy.current() == 1 else 'legacy'
         self.is_running = True
         self.refresh_texts()
         self.canvas.itemconfig(self.status_id,
@@ -443,7 +453,7 @@ class HololiveBotUI(tk.Tk):
 
     def run_bot(self):
         try:
-            auto_bot.auto_play_loop()
+            auto_bot.auto_play_loop(self.active_mode)
         except Exception as e:
             print(f"崩溃异常: {e}")
             self.canvas.itemconfig(self.status_id, text="状态：崩溃异常", fill="red")

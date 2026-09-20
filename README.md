@@ -7,6 +7,14 @@ YouTube：https://www.youtube.com/@hmr0000
 
 # Hololive Dreams Auto Bot
 
+新增可选「三阶段」策略：每局翻倍至最接近 12,800 → 6,400 → 12,800 的可达奖金（例如 12,000 / 6,000），成功入账才推进，失败重试，第三阶段完成后停止；前两阶段保留下一局。原版仍为默认策略。[详细规则与 OCR 修正](THREE_STAGE.md)。
+
+新增可選「三階段」策略：依序追求約 12,800 → 6,400 → 12,800；成功入帳才前進，失敗重試，第三階段完成後停止。前兩階段保留下一局，原版仍為預設。[詳細規則與 OCR 修正](THREE_STAGE.md)。
+
+Optional three-stage mode doubles to the nearest reachable payout around 12,800 → 6,400 → 12,800 (e.g. 12,000 / 6,000). Only confirmed settlements advance the stage; losses retry. The first two stages preserve another round, and the third stops the bot. Legacy remains the default. [Rules and OCR fix (Chinese)](THREE_STAGE.md).
+
+任意選択の3段階モード：12,800 → 6,400 → 12,800 に最も近い到達可能な報酬まで挑戦します（例：12,000 / 6,000）。入金確認後に次段階へ進み、敗北時は再挑戦。最初の2段階では次のゲームを残し、第3段階完了後に停止します。既定は従来モードです。[詳細・OCR修正（中国語）](THREE_STAGE.md)。
+
 [简体中文](#-简体中文) | [繁體中文](#-繁體中文) | [English](#-english) | [日本語](#-日本語)
 
 ---

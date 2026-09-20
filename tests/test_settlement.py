@@ -6,6 +6,7 @@ import types
 import unittest
 
 from settlement import SettlementReader
+from challenge_reward import ChallengeRewardReader
 
 
 class SettlementTests(unittest.TestCase):
@@ -23,6 +24,7 @@ class SettlementTests(unittest.TestCase):
         writes, clicks = [], []
         env = dict(frames=frames, daily_coins=360, daily_fails=0,
                    has_tallied=False, settlement_reader=SettlementReader(),
+                   reward_reader=ChallengeRewardReader(), phased=None, expected_cashout=None,
                    img=None, RESULT_REWARD_ZONE=None, TPL_CHECK=None,
                    win_left=0, win_top=0,
                    save_daily_data=lambda c, f: writes.append(c),

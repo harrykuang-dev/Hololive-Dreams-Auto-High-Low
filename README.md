@@ -38,10 +38,15 @@ python main_ui.py
 ```
 
 ### 🚀 打包为独立执行程序 (.exe)
+
 ```powershell
-pyinstaller -y -D -w -n "Hololive Dreams-Auto" -i icon.ico --collect-all ddddocr --exclude-module torch --exclude-module scipy --exclude-module pandas --exclude-module matplotlib main_ui.py
+python -m pip install -r requirements.txt pyinstaller
+python -m PyInstaller -y "Hololive Dreams-Auto.spec"
 ```
-*仓库内的 `.spec` 已自动打包模板、背景和图标，无需再手动复制资源。*
+
+请在仓库根目录运行以上命令。仓库内的 `Hololive Dreams-Auto.spec` 会自动打包 `templates/`、背景、图标及所需模型，无需手动复制资源。输出位于 `dist/Hololive Dreams-Auto/`，请保留整个文件夹（包括 `_internal/`），不要单独移动 EXE。
+
+原先以 `main_ui.py` 为入口的长命令不再需要；它不会使用仓库内已有的资源打包配置。
 
 ### 📖 使用说明
 1. 启动游戏并保持游戏窗口未完全最小化（支持后台遮挡，但不可最小化至任务栏）[cite: 2]。
@@ -84,10 +89,15 @@ python main_ui.py
 ```
 
 ### 🚀 打包為獨立執行檔 (.exe)
+
 ```powershell
-pyinstaller -y -D -w -n "Hololive Dreams-Auto" -i icon.ico --collect-all ddddocr --exclude-module torch --exclude-module scipy --exclude-module pandas --exclude-module matplotlib main_ui.py
+python -m pip install -r requirements.txt pyinstaller
+python -m PyInstaller -y "Hololive Dreams-Auto.spec"
 ```
-*打包完成後，請將 `templates/` 資料夾、`background.png` 及 `icon.ico` 複製至產生的 `dist/Hololive Dreams-Auto/` 目錄下即可直接執行[cite: 1, 2]。*
+
+請在儲存庫根目錄執行以上指令。儲存庫內的 `Hololive Dreams-Auto.spec` 會自動打包 `templates/`、背景、圖示及所需模型，無需手動複製資源。輸出位於 `dist/Hololive Dreams-Auto/`，請保留整個資料夾（包含 `_internal/`），不要單獨移動 EXE。
+
+原先以 `main_ui.py` 為入口的長指令不再需要；它不會使用儲存庫內既有的資源打包設定。
 
 ### 📖 使用說明
 1. 開啟遊戲並維持遊戲視窗未被完全最小化（可被其他視窗遮擋，但不可縮小至工作列）[cite: 2]。
@@ -128,10 +138,15 @@ python main_ui.py
 ```
 
 ### 🚀 Build Executable (.exe)
+
 ```powershell
-pyinstaller -y -D -w -n "Hololive Dreams-Auto" -i icon.ico --collect-all ddddocr --exclude-module torch --exclude-module scipy --exclude-module pandas --exclude-module matplotlib main_ui.py
+python -m pip install -r requirements.txt pyinstaller
+python -m PyInstaller -y "Hololive Dreams-Auto.spec"
 ```
-*After compilation, copy the `templates/` folder, `background.png`, and `icon.ico` into the generated `dist/Hololive Dreams-Auto/` directory[cite: 1, 2].*
+
+Run these commands from the repository root. The included `Hololive Dreams-Auto.spec` automatically bundles `templates/`, backgrounds, icons, and the required models; no manual resource copying is needed. Output is placed in `dist/Hololive Dreams-Auto/`. Keep the entire folder, including `_internal/`, together rather than moving the EXE alone.
+
+The previous long command targeting `main_ui.py` is no longer needed; it does not use the repository’s existing resource-bundling configuration.
 
 ### 📖 Instructions
 1. Launch the game and ensure the game window is not fully minimized[cite: 2].
@@ -172,10 +187,15 @@ python main_ui.py
 ```
 
 ### 🚀 単体実行ファイル (.exe) のビルド
+
 ```powershell
-pyinstaller -y -D -w -n "Hololive Dreams-Auto" -i icon.ico --collect-all ddddocr --exclude-module torch --exclude-module scipy --exclude-module pandas --exclude-module matplotlib main_ui.py
+python -m pip install -r requirements.txt pyinstaller
+python -m PyInstaller -y "Hololive Dreams-Auto.spec"
 ```
-*ビルド完了後、`templates/` フォルダ、`background.png`、`icon.ico` を生成された `dist/Hololive Dreams-Auto/` ディレクトリ内に配置してください[cite: 1, 2]。*
+
+上記のコマンドはリポジトリのルートで実行してください。同梱の `Hololive Dreams-Auto.spec` が `templates/`、背景、アイコン、必要なモデルを自動的に組み込むため、手動コピーは不要です。出力先は `dist/Hololive Dreams-Auto/` です。EXE だけを移動せず、`_internal/` を含むフォルダ全体を保持してください。
+
+従来の `main_ui.py` を指定する長いコマンドは不要です。その方法では、リポジトリ内の既存のリソース同梱設定が使用されません。
 
 ### 📖 使用方法
 1. ゲームを起動し、ウィンドウが完全に最小化されていない状態にします（他ウィンドウの背面に隠れていても動作可能）[cite: 2]。

@@ -12,5 +12,3 @@ __pycache__/
 test/
 新建文件夹/
 debug/
-strategy_events.jsonl
-*.pyc

@@ -13,7 +13,6 @@ datas += [
     ('background.png', '.'),
     ('icon.ico', '.'),
     ('icon_transparent.png', '.'),
-    ('strategy_config.json', '.'),
 ]
 
 

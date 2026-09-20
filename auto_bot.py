@@ -15,6 +15,8 @@ import ddddocr
 
 from recognizer import CardRecognizer
 from poker_core import calculate_best, JOKER_ID
+from reward_vision import read_challenge_number
+from challenge_strategy import ChallengeStrategy
 
 try:
     # Windows source-mode runs otherwise inherit a legacy console encoding and
@@ -529,8 +531,11 @@ def save_daily_data(coins, fails):
         json.dump({"coins": coins, "fails": fails, "date": time.strftime("%Y-%m-%d")}, f)
 
 
-def auto_play_loop():
+def auto_play_loop(mode='legacy'):
     global upcoming_card_val
+    if mode not in ('legacy', 'time_target'):
+        raise ValueError('Unknown strategy mode')
+    strategy = ChallengeStrategy() if mode == 'time_target' else None
     counter = HighLowCounter()
     card_rec = CardRecognizer(TEMPLATE_DIR)
     daily_coins, daily_fails = load_daily_data()
@@ -548,6 +553,8 @@ def auto_play_loop():
             continue
 
         current_state = detect_game_state(img)
+        if strategy is not None and current_state != 'ASK_CHALLENGE':
+            strategy.reset_reading()
 
         if current_state != "RESULT":
             has_tallied = False
@@ -571,6 +578,10 @@ def auto_play_loop():
         if current_state == "UNKNOWN":
             time.sleep(0.5)
             continue
+
+        if current_state == 'FULL':
+            print('[完成] 游戏显示每日上限，停止挂机。')
+            break
 
         if current_state == "START_BET":
             print("\n[状态] 初始下注")
@@ -616,7 +627,19 @@ def auto_play_loop():
 
         elif current_state == "ASK_CHALLENGE":
 
-            real_reward = read_screen_number(img, REWARD_ZONE)
+            real_reward = read_challenge_number(img, REWARD_ZONE, ocr)
+
+            if strategy is not None:
+                decision = strategy.decide(daily_coins, real_reward,
+                                           counter.deck, upcoming_card_val)
+                print(f'[时间策略] 已入账 {daily_coins} | 下一次奖励 {real_reward} | '
+                      f'{decision.action}: {decision.reason}')
+                if decision.action == 'challenge':
+                    find_and_click_icon(img, TPL_CHECK, win_left, win_top, threshold=0.55)
+                elif decision.action == 'cashout':
+                    find_and_click_icon(img, TPL_CROSS, win_left, win_top)
+                time.sleep(0.6)
+                continue
 
             next_reward = real_reward if real_reward > 0 else 200
 

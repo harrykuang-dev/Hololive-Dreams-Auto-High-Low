@@ -32,8 +32,10 @@ class VideoRegression(unittest.TestCase):
     def run_frames(self, frames, mode, coins=0):
         frames = iter(frames)
         clicks = []
+        clock = [0.0]
         original_click = bot.find_and_click_icon
         def capture():
+            clock[0] += .25
             try:
                 return next(frames), 0, 0
             except StopIteration:
@@ -51,6 +53,7 @@ class VideoRegression(unittest.TestCase):
              patch.object(bot,'load_daily_data',return_value=(coins,0)), \
              patch.object(bot,'save_daily_data'), \
              patch.object(bot,'ChallengeStrategy',return_value=self.strategy), \
+             patch.object(bot.time,'monotonic',side_effect=lambda:clock[0]), \
              patch.object(bot.time,'sleep'), contextlib.redirect_stdout(io.StringIO()):
             bot.bot_running = True
             bot.upcoming_card_val = None
@@ -78,7 +81,8 @@ class VideoRegression(unittest.TestCase):
         for name in ('fail.png','result.png'):
             for mode in ('legacy','time_target'):
                 with patch.object(bot,'read_result_number',return_value=800):
-                    actions=self.run_frames([cv2.imread(str(FIXTURES/name))],mode)
+                    frames=[cv2.imread(str(FIXTURES/name))]*(10 if name=='result.png' else 1)
+                    actions=self.run_frames(frames,mode)
                 self.assertIn(('tpl_check.png',.55),actions)
 
     def test_high_low_still_selects_a_direction(self):

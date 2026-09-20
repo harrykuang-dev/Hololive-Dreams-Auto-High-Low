@@ -17,6 +17,8 @@ from recognizer import CardRecognizer
 from poker_core import calculate_best, JOKER_ID
 from reward_vision import read_challenge_number
 from challenge_strategy import ChallengeStrategy
+from icon_matching import frame_gray, match_icon
+from settlement import SettlementReader, valid_payout
 
 try:
     # Windows source-mode runs otherwise inherit a legacy console encoding and
@@ -387,13 +389,12 @@ def find_and_click_icon(screen_bgr, tpl_path, win_left, win_top, threshold=0.80)
         print(f"❌ 找不到图标文件: {tpl_path}")
         return False
 
-    screen_gray = cv2.cvtColor(screen_bgr, cv2.COLOR_BGR2GRAY)
-    tpl_img = cv2.imread(tpl_path, cv2.IMREAD_GRAYSCALE)
-    res = cv2.matchTemplate(screen_gray, tpl_img, cv2.TM_CCOEFF_NORMED)
-    _, max_val, _, max_loc = cv2.minMaxLoc(res)
+    match = match_icon(frame_gray(screen_bgr), tpl_path)
+    if match is None:
+        return False
+    max_val, max_loc, (h, w) = match
 
     if max_val >= threshold:
-        h, w = tpl_img.shape
         print(f"👉 成功触发点击: {os.path.basename(tpl_path)} (匹配度: {max_val:.2f} >= {threshold})")
         safe_click(max_loc[0] + w // 2, max_loc[1] + h // 2, win_left, win_top)
         return True
@@ -403,16 +404,19 @@ def find_and_click_icon(screen_bgr, tpl_path, win_left, win_top, threshold=0.80)
 
 
 def detect_game_state(screen_bgr):
-    screen_gray = cv2.cvtColor(screen_bgr, cv2.COLOR_BGR2GRAY)
+    screen_gray = frame_gray(screen_bgr)
+    if screen_gray is None:
+        return 'UNKNOWN'
     THRESHOLD = 0.85
 
     for state, tpl_paths in ICON_TEMPLATES.items():
         for tpl_path in tpl_paths:
             if not os.path.exists(tpl_path):
                 continue
-            tpl_img = cv2.imread(tpl_path, cv2.IMREAD_GRAYSCALE)
-            res = cv2.matchTemplate(screen_gray, tpl_img, cv2.TM_CCOEFF_NORMED)
-            _, max_val, _, _ = cv2.minMaxLoc(res)
+            match = match_icon(screen_gray, tpl_path)
+            if match is None:
+                continue
+            max_val, _, _ = match
             if max_val >= THRESHOLD:
                 return state
     return "UNKNOWN"
@@ -543,6 +547,16 @@ def auto_play_loop(mode='legacy'):
     print(f"开始自动挂机... 当日累计代币: {daily_coins} | 累计失败: {daily_fails} 次 | 今日净利润: {net_profit}")
 
     has_tallied = False
+    settlement_reader = SettlementReader()
+    observed_cash = expected_cashout = None
+
+    def request_cashout(frame, left, top):
+        nonlocal expected_cashout
+        clicked = find_and_click_icon(frame, TPL_CROSS, left, top)
+        if clicked:
+            expected_cashout = observed_cash
+        return clicked
+
     has_recorded_fail = False  # 防止在 FAIL 动画期间重复扣除门票
 
     while daily_coins < 20000 and bot_running :
@@ -556,8 +570,8 @@ def auto_play_loop(mode='legacy'):
         if strategy is not None and current_state != 'ASK_CHALLENGE':
             strategy.reset_reading()
 
-        if current_state != "RESULT":
-            has_tallied = False
+        # A transient UNKNOWN frame must not allow the same result to be
+        # credited twice. Reset only when the next round actually starts.
         if current_state != "FAIL":
             has_recorded_fail = False
 
@@ -591,10 +605,17 @@ def auto_play_loop(mode='legacy'):
             # 遍历尝试点击当前语言的 Start 图标
             for tpl in ICON_TEMPLATES["START_BET"]:
                 if find_and_click_icon(img, tpl, win_left, win_top):
+                    has_tallied = False
+                    settlement_reader.reset()
+                    observed_cash = expected_cashout = None
                     break
             time.sleep(1)
 
         elif current_state == "HOLD_CARDS":
+            if has_tallied:  # Also handle a manually started next round.
+                has_tallied = False
+                settlement_reader.reset()
+                observed_cash = expected_cashout = None
             print("\n[状态] 留牌阶段")
             recognized_cards, rects = card_rec.recognize(img)
             if len(recognized_cards) == 5:
@@ -628,6 +649,8 @@ def auto_play_loop(mode='legacy'):
         elif current_state == "ASK_CHALLENGE":
 
             real_reward = read_challenge_number(img, REWARD_ZONE, ocr)
+            observed_cash = (real_reward//2 if real_reward % 2 == 0
+                             and valid_payout(real_reward//2) else None)
 
             if strategy is not None:
                 decision = strategy.decide(daily_coins, real_reward,
@@ -637,7 +660,7 @@ def auto_play_loop(mode='legacy'):
                 if decision.action == 'challenge':
                     find_and_click_icon(img, TPL_CHECK, win_left, win_top, threshold=0.55)
                 elif decision.action == 'cashout':
-                    find_and_click_icon(img, TPL_CROSS, win_left, win_top)
+                    request_cashout(img, win_left, win_top)
                 time.sleep(0.6)
                 continue
 
@@ -669,7 +692,7 @@ def auto_play_loop(mode='legacy'):
 
                     print(f"🎉 终极目标达成！在手奖金已达 {current_cashout} (超1w)，安全提现大丰收！")
 
-                    find_and_click_icon(img, TPL_CROSS, win_left, win_top)
+                    request_cashout(img, win_left, win_top)
 
                 else:
 
@@ -689,7 +712,7 @@ def auto_play_loop(mode='legacy'):
                     print(
                         f"🛑 警报：提现(+{current_cashout})在安全线内，但再翻倍(+{next_reward})总额将达 {daily_coins + next_reward} 提前破限！果断收手垫刀！")
 
-                    find_and_click_icon(img, TPL_CROSS, win_left, win_top)
+                    request_cashout(img, win_left, win_top)
 
 
                 # 2. 如果当前现金已经不慎超过了 19800（极端天胡开局）
@@ -700,7 +723,7 @@ def auto_play_loop(mode='legacy'):
 
                         print(f"🎉 意外天胡！垫刀途中在手直接达 {current_cashout} (超1w)，直接收手大丰收！")
 
-                        find_and_click_icon(img, TPL_CROSS, win_left, win_top)
+                        request_cashout(img, win_left, win_top)
 
                     else:
 
@@ -716,7 +739,7 @@ def auto_play_loop(mode='legacy'):
 
                     print(f"🛑 发育局胜率太低 ({win_rate:.2%})，提现 {current_cashout} 垫刀！")
 
-                    find_and_click_icon(img, TPL_CROSS, win_left, win_top)
+                    request_cashout(img, win_left, win_top)
 
 
                 # 4. 利润安全且下一把翻倍仍在安全线内，继续追击
@@ -811,15 +834,17 @@ def auto_play_loop(mode='legacy'):
 
         elif current_state == "RESULT":
             if not has_tallied:
-                print("\n[状态] 结算界面，正在核对账目...")
-                earned = read_result_number(img, RESULT_REWARD_ZONE)
-                if earned > 0:
-                    daily_coins += earned
-                    net_profit = daily_coins - (daily_fails * 50)
-                    print(
-                        f"💰 成功入账: {earned} ! 当前总金币: {daily_coins} | 累计失败: {daily_fails} 次 | 今日净利润: {net_profit}")
-                else:
-                    print("⚠️ 未能识别到结算界面的金币数字")
+                if settlement_reader.started is None:
+                    print("\n[状态] 结算界面，等待动画结束并核对账目...")
+                amount = read_result_number(img, RESULT_REWARD_ZONE)
+                earned = settlement_reader.observe(amount, time.monotonic(), expected_cashout)
+                if earned is None:
+                    time.sleep(.2)
+                    continue
+                daily_coins += earned
+                net_profit = daily_coins - (daily_fails * 50)
+                print(
+                    f"💰 成功入账: {earned} ! 当前总金币: {daily_coins} | 累计失败: {daily_fails} 次 | 今日净利润: {net_profit}")
 
                 save_daily_data(daily_coins, daily_fails)
                 has_tallied = True

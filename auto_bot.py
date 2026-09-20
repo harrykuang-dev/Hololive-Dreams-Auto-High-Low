@@ -397,7 +397,6 @@ def find_and_click_icon(screen_bgr, tpl_path, win_left, win_top, threshold=0.80)
         safe_click(max_loc[0] + w // 2, max_loc[1] + h // 2, win_left, win_top)
         return True
     else:
-        print(f"⚠️ 放弃点击: {os.path.basename(tpl_path)} (当前匹配度仅 {max_val:.2f}，达不到 {threshold})")
         return False
 
 

@@ -15,6 +15,7 @@ import ddddocr
 
 from recognizer import CardRecognizer
 from poker_core import calculate_best, JOKER_ID
+from settlement import SettlementReader
 
 try:
     # Windows source-mode runs otherwise inherit a legacy console encoding and
@@ -538,6 +539,7 @@ def auto_play_loop():
     print(f"开始自动挂机... 当日累计代币: {daily_coins} | 累计失败: {daily_fails} 次 | 今日净利润: {net_profit}")
 
     has_tallied = False
+    settlement_reader = SettlementReader()
     has_recorded_fail = False  # 防止在 FAIL 动画期间重复扣除门票
 
     while daily_coins < 20000 and bot_running :
@@ -549,8 +551,10 @@ def auto_play_loop():
 
         current_state = detect_game_state(img)
 
-        if current_state != "RESULT":
+        # Only a new round resets accounting; UNKNOWN may be a result flicker.
+        if current_state in ("START_BET", "HOLD_CARDS"):
             has_tallied = False
+            settlement_reader.reset()
         if current_state != "FAIL":
             has_recorded_fail = False
 
@@ -788,15 +792,17 @@ def auto_play_loop():
 
         elif current_state == "RESULT":
             if not has_tallied:
-                print("\n[状态] 结算界面，正在核对账目...")
-                earned = read_result_number(img, RESULT_REWARD_ZONE)
-                if earned > 0:
-                    daily_coins += earned
-                    net_profit = daily_coins - (daily_fails * 50)
-                    print(
-                        f"💰 成功入账: {earned} ! 当前总金币: {daily_coins} | 累计失败: {daily_fails} 次 | 今日净利润: {net_profit}")
-                else:
-                    print("⚠️ 未能识别到结算界面的金币数字")
+                if settlement_reader.started is None:
+                    print("\n[状态] 结算界面，等待金额稳定后核对账目...")
+                amount = read_result_number(img, RESULT_REWARD_ZONE)
+                earned = settlement_reader.observe(amount, time.monotonic())
+                if earned is None:
+                    time.sleep(.2)
+                    continue
+                daily_coins += earned
+                net_profit = daily_coins - (daily_fails * 50)
+                print(
+                    f"💰 成功入账: {earned} ! 当前总金币: {daily_coins} | 累计失败: {daily_fails} 次 | 今日净利润: {net_profit}")
 
                 save_daily_data(daily_coins, daily_fails)
                 has_tallied = True

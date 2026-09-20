@@ -7,14 +7,6 @@ YouTube：https://www.youtube.com/@hmr0000
 
 # Hololive Dreams Auto Bot
 
-新增可选「三阶段」策略：每局翻倍至最接近 12,800 → 6,400 → 12,800 的可达奖金（例如 12,000 / 6,000），成功入账才推进，失败重试，第三阶段完成后停止；前两阶段保留下一局。原版仍为默认策略。[详细规则与 OCR 修正](THREE_STAGE.md)。
-
-新增可選「三階段」策略：依序追求約 12,800 → 6,400 → 12,800；成功入帳才前進，失敗重試，第三階段完成後停止。前兩階段保留下一局，原版仍為預設。[詳細規則與 OCR 修正](THREE_STAGE.md)。
-
-Optional three-stage mode doubles to the nearest reachable payout around 12,800 → 6,400 → 12,800 (e.g. 12,000 / 6,000). Only confirmed settlements advance the stage; losses retry. The first two stages preserve another round, and the third stops the bot. Legacy remains the default. [Rules and OCR fix (Chinese)](THREE_STAGE.md).
-
-任意選択の3段階モード：12,800 → 6,400 → 12,800 に最も近い到達可能な報酬まで挑戦します（例：12,000 / 6,000）。入金確認後に次段階へ進み、敗北時は再挑戦。最初の2段階では次のゲームを残し、第3段階完了後に停止します。既定は従来モードです。[詳細・OCR修正（中国語）](THREE_STAGE.md)。
-
 [简体中文](#-简体中文) | [繁體中文](#-繁體中文) | [English](#-english) | [日本語](#-日本語)
 
 ---
@@ -22,6 +14,10 @@ Optional three-stage mode doubles to the nearest reachable payout around 12,800 
 ## 🇨🇳 简体中文
 
 专为《Hololive Dreams》小游戏设计的全自动挂机与策略决策工具，集成智能留牌算法、高低牌动态算牌及多语言 UI[cite: 1, 2]。
+
+### 三阶段翻倍策略
+
+可在策略选单选择「三阶段：12,800 → 6,400 → 12,800」。持续翻倍至最接近目标的可达奖金，例如 12,000 / 6,000；成功入账才推进阶段，失败后重试。前两阶段保留下一局，第三阶段完成后停止。进度按日保存，原版仍为默认策略。[详细规则](THREE_STAGE.md#zh-cn)。
 
 ### ✨ 核心特性
 - **最优留牌计算**：基于 Numba JIT 高性能加速，自动评估起手五张牌并计算期望收益最高的保留组合[cite: 2]。
@@ -65,6 +61,10 @@ pyinstaller -y -D -w -n "Hololive Dreams-Auto" -i icon.ico --collect-all ddddocr
 
 專為《Hololive Dreams》小遊戲設計的全自動掛機與策略決策工具，整合智慧留牌演算法、高低牌動態算牌及多語言 UI[cite: 1, 2]。
 
+### 三階段翻倍策略
+
+可在策略選單選擇「三階段：12,800 → 6,400 → 12,800」。持續翻倍至最接近目標的可達獎金，例如 12,000 / 6,000；成功入帳才前進，失敗後重試。前兩階段保留下一局，第三階段完成後停止。進度按日保存，原版仍為預設策略。[詳細規則](THREE_STAGE.md#zh-tw)。
+
 ### ✨ 核心特色
 - **最佳留牌計算**：基於 Numba JIT 高效能加速，自動評估初始五張手牌並計算期望收益最高的保留組合[cite: 2]。
 - **動態算牌記牌**：內建 High-Low 算牌引擎，根據剩餘牌堆即時計算當前最高勝率選項[cite: 2]。
@@ -105,6 +105,10 @@ pyinstaller -y -D -w -n "Hololive Dreams-Auto" -i icon.ico --collect-all ddddocr
 
 An automated assistant and decision-making bot for the mini-game in *Hololive Dreams*, featuring optimal poker-hand calculation, dynamic High-Low card counting, and a multilingual GUI[cite: 1, 2].
 
+### Three-stage doubling strategy
+
+Select “3 stages: 12,800 → 6,400 → 12,800” to keep doubling to the nearest reachable payout, such as 12,000 / 6,000. Advance only after a confirmed cashout; retry the same stage after a loss. The first two stages preserve another round, and the bot stops after the third. Progress is saved for the day. Legacy remains the default. [Full rules](THREE_STAGE.md#en).
+
 ### ✨ Key Features
 - **Optimal Hand Selection**: Powered by Numba JIT acceleration to evaluate initial poker hands and retain the mathematically optimal combination[cite: 2].
 - **Dynamic Card Counting**: Tracks remaining cards in the deck during the High-Low game to determine real-time winning probabilities[cite: 2].
@@ -144,6 +148,10 @@ pyinstaller -y -D -w -n "Hololive Dreams-Auto" -i icon.ico --collect-all ddddocr
 ## 🇯🇵 日本語
 
 『Hololive Dreams』のミニゲーム向けに設計された全自動周回・戦略決定支援ツールです[cite: 1, 2]。ポーカーの最適ホールド判定、ハイ＆ロー（High-Low）の動的カウンティング、多言語対応UIを搭載しています[cite: 1, 2]。
+
+### 3段階のダブルアップ戦略
+
+戦略メニューで「3段階：12,800 → 6,400 → 12,800」を選択できます。目標に最も近い到達可能な報酬（例：12,000 / 6,000）まで挑戦します。入金確認後に次段階へ進み、敗北時は同じ段階を再試行します。最初の2段階では次のゲームを残し、第3段階完了後に停止します。進行状況は当日分を保存し、既定は従来モードです。[詳細ルール（英語）](THREE_STAGE.md#en)。
 
 ### ✨ 主な機能
 - **ポーカー最適手札計算**：Numba JITによる高速演算で、配られた5枚の手札から期待値が最大となるキープカードを自動選定します[cite: 2]。

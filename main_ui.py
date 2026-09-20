@@ -79,6 +79,14 @@ TRANSLATIONS = {
 }
 
 
+STRATEGY_LABELS = {
+    'zh': ('1.0.1 原版', '三阶段：12,800 → 6,400 → 12,800'),
+    'tw': ('1.0.1 原版', '三階段：12,800 → 6,400 → 12,800'),
+    'en': ('1.0.1 Legacy', '3 stages: 12,800 → 6,400 → 12,800'),
+    'ja': ('1.0.1 従来モード', '3段階：12,800 → 6,400 → 12,800'),
+}
+
+
 def get_local_data():
     if auto_bot.DATA_FILE.exists():
         try:
@@ -228,8 +236,8 @@ class HololiveBotUI(tk.Tk):
         self.btn_bg_win = self.canvas.create_window(0, 0, window=self.btn_bg)
         self.btn_exit_win = self.canvas.create_window(0, 0, window=self.btn_exit)
 
-        self.combo_strategy = ttk.Combobox(self, state='readonly', values=[
-            '1.0.1 原版 / Legacy', '三阶段 / 12,800 → 6,400 → 12,800'])
+        self.combo_strategy = ttk.Combobox(self, state='readonly',
+                                           values=STRATEGY_LABELS[self.current_lang])
         self.combo_strategy.current(0)
         self.strategy_window = self.canvas.create_window(0, 0, window=self.combo_strategy, anchor='nw')
         self.active_mode = 'legacy'
@@ -401,7 +409,10 @@ class HololiveBotUI(tk.Tk):
 
     def refresh_texts(self):
         t = TRANSLATIONS[self.current_lang]
-        self.combo_strategy.configure(state='disabled' if self.is_running else 'readonly')
+        selected_strategy = self.combo_strategy.current()
+        self.combo_strategy.configure(values=STRATEGY_LABELS[self.current_lang],
+                                      state='disabled' if self.is_running else 'readonly')
+        self.combo_strategy.current(max(0, selected_strategy))
         self.title(t["title"])
         self.canvas.itemconfig(self.title_id, text=t["title"])
         self.canvas.itemconfig(self.lang_label_id, text=t["lang_label"])

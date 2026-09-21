@@ -17,7 +17,7 @@ YouTube：https://www.youtube.com/@hmr0000
 
 ### 三阶段翻倍策略
 
-可在策略选单选择「三阶段：12,800 → 6,400 → 12,800」。持续翻倍至最接近目标的可达奖金，例如 12,000 / 6,000；成功入账才推进阶段，失败后重试。前两阶段保留下一局，第三阶段完成后停止。进度按日保存，原版仍为默认策略。[详细规则](THREE_STAGE.md#zh-cn)。
+第一、第三阶段持续翻倍，直到游戏自动结算；第二阶段在本局开始时按起手奖金确定成功次数，随后只按确认成功的次数决定收手。例如 200 起手成功 5 次得到 6,400，700 起手成功 3 次得到 5,600。平手与重复画面不计数，失败重试同一阶段，成功入账才推进。原版仍为默认策略。[详细规则](THREE_STAGE.md#zh-cn)。
 
 ### ✨ 核心特性
 - **最优留牌计算**：基于 Numba JIT 高性能加速，自动评估起手五张牌并计算期望收益最高的保留组合[cite: 2]。
@@ -67,7 +67,7 @@ python -m PyInstaller -y "Hololive Dreams-Auto.spec"
 
 ### 三階段翻倍策略
 
-可在策略選單選擇「三階段：12,800 → 6,400 → 12,800」。持續翻倍至最接近目標的可達獎金，例如 12,000 / 6,000；成功入帳才前進，失敗後重試。前兩階段保留下一局，第三階段完成後停止。進度按日保存，原版仍為預設策略。[詳細規則](THREE_STAGE.md#zh-tw)。
+第一、第三階段持續翻倍，直到遊戲自動結算；第二階段在本局開始時按起手獎金確定成功次數，之後只按確認成功的次數決定收手。例如 200 起手成功 5 次得到 6,400，700 起手成功 3 次得到 5,600。平手與重複畫面不計數，失敗重試同一階段，成功入帳才前進。原版仍為預設策略。[詳細規則](THREE_STAGE.md#zh-tw)。
 
 ### ✨ 核心特色
 - **最佳留牌計算**：基於 Numba JIT 高效能加速，自動評估初始五張手牌並計算期望收益最高的保留組合[cite: 2]。
@@ -115,7 +115,7 @@ An automated assistant and decision-making bot for the mini-game in *Hololive Dr
 
 ### Three-stage doubling strategy
 
-Select “3 stages: 12,800 → 6,400 → 12,800” to keep doubling to the nearest reachable payout, such as 12,000 / 6,000. Advance only after a confirmed cashout; retry the same stage after a loss. The first two stages preserve another round, and the bot stops after the third. Progress is saved for the day. Legacy remains the default. [Full rules](THREE_STAGE.md#en).
+Stages one and three keep doubling until the game settles automatically. Stage two sets a win-count target from the initial payout, then cashes out by confirmed wins rather than ongoing reward readings: five wins from 200 yields 6,400; three wins from 700 yields 5,600. Ties and repeated frames do not count. Losses retry the same stage; confirmed settlements advance it. Legacy remains the default. [Full rules](THREE_STAGE.md#en).
 
 ### ✨ Key Features
 - **Optimal Hand Selection**: Powered by Numba JIT acceleration to evaluate initial poker hands and retain the mathematically optimal combination[cite: 2].
@@ -163,7 +163,7 @@ Run these commands from the repository root. The included `Hololive Dreams-Auto.
 
 ### 3段階のダブルアップ戦略
 
-戦略メニューで「3段階：12,800 → 6,400 → 12,800」を選択できます。目標に最も近い到達可能な報酬（例：12,000 / 6,000）まで挑戦します。入金確認後に次段階へ進み、敗北時は同じ段階を再試行します。最初の2段階では次のゲームを残し、第3段階完了後に停止します。進行状況は当日分を保存し、既定は従来モードです。[詳細ルール（英語）](THREE_STAGE.md#en)。
+第1・第3段階はゲームが自動精算するまで挑戦します。第2段階は初期報酬から必要成功回数を決め、その後は成功回数だけで精算を判断します。200なら5回で6,400、700なら3回で5,600です。引き分けや重複画面は数えず、敗北時は同じ段階を再試行し、入金確認後に次へ進みます。既定は従来モードです。[詳細ルール（英語）](THREE_STAGE.md#en)。
 
 ### ✨ 主な機能
 - **ポーカー最適手札計算**：Numba JITによる高速演算で、配られた5枚の手札から期待値が最大となるキープカードを自動選定します[cite: 2]。

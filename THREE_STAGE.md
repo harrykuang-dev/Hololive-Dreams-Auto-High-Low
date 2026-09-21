@@ -6,76 +6,73 @@
 
 ## 简体中文
 
-在界面策略选单选择「三阶段：12,800 → 6,400 → 12,800」。默认仍为 1.0.1 原版，可在停止挂机时切换。
+在策略选单选择「三阶段：最大 → 计次 → 最大」。原版仍为默认选项。
 
-### 收手规则
+- 第一、第三阶段：持续挑战直到游戏自动结算，不设置 12,800 等软件止盈金额。
+- 第二阶段：只在本局开始时确认一次起手奖励，确定目标成功次数，随后不再根据当前奖金判断翻倍。
+- 只有点击猜高／低后出现成功询问，才增加一次成功；平手、重复画面、点击重试不增加次数。游戏达到上限直接结算时，最后一次成功也只计算一次。
+- 失败后成功次数归零，重试同一阶段；确认结算入账后才推进阶段，不再比较结算金额是否达到旧目标。
 
-每局持续挑战，不因胜率低而提前收手；猜高／低方向仍沿用原版记牌判断。按三次成功入账依次追求 12,800、6,400、12,800，每次目标是本局奖金，不是每日累计。
-
-目标取本局奖金倍数序列中最接近指定值的金额；差距相同时取较低金额。
-
-| 本局起手奖金 | 第一次／第三次目标 | 第二次目标 |
+| 起手奖励 | 第二阶段成功次数 | 对应奖金 |
 |---|---:|---:|
-| 200、400、800 | 12,800 | 6,400 |
-| 1,500、3,000 | 12,000 | 6,000 |
-| 700 | 11,200 | 5,600 |
-| 7,000 | 14,000 | 7,000 |
-| 10,000 | 10,000 | 10,000 |
+| 200 | 5 | 6,400 |
+| 400 | 4 | 6,400 |
+| 700 | 3 | 5,600 |
+| 800 | 3 | 6,400 |
+| 1,500 | 2 | 6,000 |
+| 3,000 | 1 | 6,000 |
+| 7,000 / 10,000 | 0 | 7,000 / 10,000 |
 
-前两阶段会排除本次入账后累计达到或超过 20,000 的候选，以保留后续游玩机会。例如先入账 14,000，第二阶段 700 起手选择 5,600；若 7,000 起手连立即收手都会跨过上限，程序停止，交由用户处理。已有当日收益时也应用此规则，实际目标可能低于表列值；日志会显示本局目标。
+第二阶段会在起手时排除入账后累计达到 20,000 的次数选项，以保留第三阶段；因此已有收益较高时，次数可能低于表中数值。若立即收手也会跨上限，则停止等待手动处理。第一阶段若被游戏提前结束当日游玩，程序无法绕过每日限制。
 
-失败不推进阶段，下一局重新选择该阶段的可达目标。只有结算金额稳定确认、与收手金额相符并写入账目后才进入下一阶段。游戏强制提前结算且未达本局目标时，收益照常入账，但保持同一阶段。
-
-第三阶段成功后停止挂机。进度与金币一起保存在程序旁的 `daily_coins.json`，当日重开仍保留，日期更换后重新开始。旧账目没有阶段字段时从第一阶段开始，不根据累计金币猜测已完成次数。切回原版不会删除三阶段进度。
+结算时以起手奖励及成功次数核对金额，不允许缺位数字造成错误入账。三阶段进度与金币保存在 `daily_coins.json`，当日重开保留，下一日期重置。中途重新启动而缺少本局计数时，停止提示从新一局开始，不猜测已成功次数。第三阶段成功后停止。此前已写入的错误账目需人工核对，更新不会自动推算历史收益。
 
 <a id="zh-tw"></a>
 
 ## 繁體中文
 
-在介面策略選單選擇「三階段：12,800 → 6,400 → 12,800」。預設仍為 1.0.1 原版，可在停止掛機時切換。
+在策略選單選擇「三階段：最大 → 計次 → 最大」。原版仍為預設選項。
 
-### 收手規則
+- 第一、第三階段：持續挑戰直到遊戲自動結算，不設定 12,800 等軟體止盈金額。
+- 第二階段：只在本局開始時確認一次起手獎勵，確定目標成功次數，之後不再根據當前獎金判斷翻倍。
+- 只有點擊猜高／低後出現成功詢問，才增加一次成功；平手、重複畫面、點擊重試不增加次數。遊戲達到上限直接結算時，最後一次成功也只計算一次。
+- 失敗後成功次數歸零，重試同一階段；確認結算入帳後才前進，不再比較結算金額是否達到舊目標。
 
-每局持續挑戰，不因勝率低而提前收手；猜高／低方向仍沿用原版記牌判斷。按三次成功入帳依序追求 12,800、6,400、12,800，每次目標是本局獎金，不是每日累計。
-
-目標取本局獎金倍數序列中最接近指定值的金額；差距相同時取較低金額。例如：
-
-| 本局起手獎金 | 第一次／第三次目標 | 第二次目標 |
+| 起手獎勵 | 第二階段成功次數 | 對應獎金 |
 |---|---:|---:|
-| 200、400、800 | 12,800 | 6,400 |
-| 1,500、3,000 | 12,000 | 6,000 |
-| 700 | 11,200 | 5,600 |
-| 7,000 | 14,000 | 7,000 |
-| 10,000 | 10,000 | 10,000 |
+| 200 | 5 | 6,400 |
+| 400 | 4 | 6,400 |
+| 700 | 3 | 5,600 |
+| 800 | 3 | 6,400 |
+| 1,500 | 2 | 6,000 |
+| 3,000 | 1 | 6,000 |
+| 7,000 / 10,000 | 0 | 7,000 / 10,000 |
 
-前兩階段還會排除「本次入帳後累計達到或超過 20,000」的候選，以保留後續遊玩機會。例如先入帳 14,000，第二階段 700 起手選 5,600；若 7,000 起手連立即收手都跨上限，程式停止讓使用者處理，不假裝還能完成三階段。已有當日收益時也套用此規則，實際目標可能低於表列值；日誌會顯示本局採用目標。
+第二階段會在起手時排除入帳後累計達到 20,000 的次數選項，以保留第三階段；因此已有收益較高時，次數可能低於表中數值。若立即收手也會跨上限，則停止等待手動處理。第一階段若被遊戲提前結束當日遊玩，程式無法繞過每日限制。
 
-失敗不推進階段，下一局重新選取該階段可達目標。達到目標也不立即前進：只有結算金額穩定確認、與收手金額相符並寫入帳目後才進到下一階段。遊戲強制提早結算且不足本局目標時，收益照常入帳，但留在同一階段。
-
-第三階段成功後停止掛機。三階段進度與金幣一起保存在程式旁的 `daily_coins.json`，當日重開程式仍保留；日期更換後重新開始。舊帳目沒有階段欄位時從第一階段開始，不根據累計金幣猜測已完成幾次。切回原版不會刪除三階段進度。
+結算時以起手獎勵及成功次數核對金額，不允許缺位數字造成錯誤入帳。三階段進度與金幣保存在 `daily_coins.json`，當日重開保留，下一日期重置。中途重新啟動而缺少本局計數時，停止提示從新一局開始，不猜測已成功次數。第三階段成功後停止。此前已寫入的錯誤帳目需人工核對，更新不會自動推算歷史收益。
 
 <a id="en"></a>
 
 ## English
 
-Choose “3 stages: 12,800 → 6,400 → 12,800” in the strategy dropdown while the bot is stopped. Legacy 1.0.1 remains the default.
+Select “3 stages: Max → Win count → Max”. Legacy remains the default.
 
-### Cashout rules
+- Stages one and three keep challenging until the game settles automatically. There is no software cashout target such as 12,800.
+- Stage two confirms the initial payout once and sets a win-count target. Ongoing reward readings do not decide whether to double.
+- A successful High/Low click followed by a success prompt counts once. Ties, repeated frames, and click retries do not add wins. A final win leading directly to settlement also counts once.
+- A loss resets the round’s count but keeps the stage. A confirmed successful settlement advances the stage without comparing the payout against the old target.
 
-Keep doubling without an early cashout for unfavorable odds. High/Low direction selection still uses the original card-counting logic. The three successful cashouts target 12,800, 6,400, and 12,800 in order. Each target refers to the current round’s payout, not the daily total.
-
-Choose the closest amount reachable by doubling the current payout. If two amounts are equally close, choose the lower one.
-
-| Starting payout | First / third target | Second target |
+| Initial payout | Stage-two wins | Payout |
 |---|---:|---:|
-| 200, 400, 800 | 12,800 | 6,400 |
-| 1,500, 3,000 | 12,000 | 6,000 |
-| 700 | 11,200 | 5,600 |
-| 7,000 | 14,000 | 7,000 |
-| 10,000 | 10,000 | 10,000 |
+| 200 | 5 | 6,400 |
+| 400 | 4 | 6,400 |
+| 700 | 3 | 5,600 |
+| 800 | 3 | 6,400 |
+| 1,500 | 2 | 6,000 |
+| 3,000 | 1 | 6,000 |
+| 7,000 / 10,000 | 0 | 7,000 / 10,000 |
 
-The first two stages exclude cashouts that would bring the daily total to 20,000 or more, preserving another round. For example, after banking 14,000, a second-stage hand starting at 700 targets 5,600. If a hand starts at 7,000 and even an immediate cashout would cross the cap, the bot stops for manual handling. Existing daily earnings count toward this check, so the actual target may be lower than the table shows. The log displays the selected target.
+At the start of stage two, exclude win counts that would bring the daily total to 20,000 or more, preserving stage three. Existing earnings may therefore reduce the target count. If even an immediate cashout would cross the cap, stop for manual handling. The bot cannot override a daily limit imposed by the game during stage one.
 
-A loss does not advance the stage. The next round selects a reachable target for the same stage. Advance only after the settlement amount is confirmed, matches the requested cashout, and is saved. If the game forces an early settlement below the round’s target, record the earnings but remain in the same stage.
-
-The bot stops after the third successful stage. Progress and coins are stored together in `daily_coins.json` next to the application. Restarting on the same day preserves progress; a new date resets it. An older ledger without a stage field starts at stage one: the bot does not infer past stages from total coins. Switching to Legacy does not erase three-stage progress.
+Settlement amounts are checked against the initial payout and confirmed wins to prevent missing digits from corrupting the ledger. Stage progress and coins are saved in `daily_coins.json`, preserved on same-day restarts and reset on a new date. Restarting mid-round without its count stops the bot and asks for a fresh round rather than guessing progress. Stop after stage three. Previously incorrect ledger entries require manual review; updating does not reconstruct historical earnings.

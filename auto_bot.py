@@ -106,7 +106,7 @@ HIGH_LOW_SEARCH_ZONE = (42, 358, 1256, 451)
 REWARD_ZONE = (606, 389, 870, 253)
 
 # 💰 结算蓝字 OCR 识别区 (已保留你量好的数据)
-RESULT_REWARD_ZONE = (1044, 337, 450, 97)
+RESULT_REWARD_ZONE = (990, 290, 600, 150)
 
 upcoming_card_val = None
 
@@ -403,6 +403,19 @@ def find_and_click_icon(screen_bgr, tpl_path, win_left, win_top, threshold=0.80)
         return False
 
 
+def is_success_prompt(screen_bgr):
+    gray = cv2.cvtColor(screen_bgr, cv2.COLOR_BGR2GRAY)
+    for path in ICON_TEMPLATES['ASK_CHALLENGE']:
+        if 'success_' not in os.path.basename(path):
+            continue
+        template = cv2.imdecode(np.frombuffer(Path(path).read_bytes(), dtype=np.uint8), cv2.IMREAD_GRAYSCALE)
+        if template is not None and template.shape[0] <= gray.shape[0] and template.shape[1] <= gray.shape[1]:
+            score = cv2.minMaxLoc(cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED))[1]
+            if score >= .85:
+                return True
+    return False
+
+
 def detect_game_state(screen_bgr):
     screen_gray = cv2.cvtColor(screen_bgr, cv2.COLOR_BGR2GRAY)
     THRESHOLD = 0.85
@@ -610,26 +623,38 @@ def auto_play_loop(mode='legacy'):
 
         elif current_state == "ASK_CHALLENGE":
 
+            if phased is not None:
+                if phased.base_cash is None:
+                    if is_success_prompt(img):
+                        raise RuntimeError('当前已在翻倍途中，无法恢复本局成功次数。请从新一局开始。')
+                    real_reward = read_screen_number(img, REWARD_ZONE)
+                    next_reward = reward_reader.observe(real_reward, time.monotonic())
+                    if next_reward is None:
+                        time.sleep(.25)
+                        continue
+                    phased.start_round(next_reward // 2, daily_coins)
+                elif is_success_prompt(img):
+                    phased.confirm_success()
+                action = phased.decide()
+                goal = ('游戏自动结算' if phased.target_wins is None
+                        else f'{phased.target_wins} 次成功')
+                print(f'[三阶段] 第 {phased.stage + 1}/3 阶段 | '
+                      f'已成功 {phased.successes} 次 | 目标: {goal} | '
+                      + ('收手入账' if action == 'cashout' else '继续翻倍'))
+                if action == 'cashout':
+                    request_cashout(img, win_left, win_top, phased.expected_cash)
+                else:
+                    find_and_click_icon(img, TPL_CHECK, win_left, win_top, threshold=.55)
+                time.sleep(.6)
+                continue
+
             real_reward = read_screen_number(img, REWARD_ZONE)
             next_reward = reward_reader.observe(real_reward, time.monotonic())
             if next_reward is None:
                 time.sleep(.25)
                 continue
-
             current_cashout = next_reward // 2
-
             print(f"\n[账房] 当前在手现金: {current_cashout} | 挑战成功后将变为: {next_reward}")
-
-            if phased is not None:
-                action = phased.decide(daily_coins, current_cashout)
-                print(f'[三阶段] 第 {phased.stage + 1}/3 阶段 | 本局目标: {phased.round_target} | '
-                      + ('达到目标，收手入账' if action == 'cashout' else '继续翻倍'))
-                if action == 'cashout':
-                    request_cashout(img, win_left, win_top, current_cashout)
-                else:
-                    find_and_click_icon(img, TPL_CHECK, win_left, win_top, threshold=.55)
-                time.sleep(.6)
-                continue
 
             if upcoming_card_val is not None:
 
@@ -713,6 +738,8 @@ def auto_play_loop(mode='legacy'):
 
             time.sleep(0.6)
         elif current_state == "HIGH_LOW":
+            if phased is not None and phased.base_cash is None:
+                raise RuntimeError('当前已在翻倍途中，无法恢复本局成功次数。请从新一局开始。')
             try:
                 # 1. 用新引擎搜出所有白色卡牌
                 rects = find_all_card_rects(img, HIGH_LOW_SEARCH_ZONE)
@@ -733,9 +760,11 @@ def auto_play_loop(mode='legacy'):
                         print(f"\n明牌: {single_card.rank}, 选: {best_choice.upper()} (胜率: {rate:.2%})")
 
                         if best_choice == "high":
-                            find_and_click_icon(img, TPL_HIGH, win_left, win_top)
+                            guessed = find_and_click_icon(img, TPL_HIGH, win_left, win_top)
                         else:
-                            find_and_click_icon(img, TPL_LOW, win_left, win_top)
+                            guessed = find_and_click_icon(img, TPL_LOW, win_left, win_top)
+                        if phased is not None and guessed:
+                            phased.guess_clicked()
 
                         # === 2. 状态对比追踪连拍 ===
                         print("[预判] 启动多帧对比追踪...")
@@ -797,6 +826,11 @@ def auto_play_loop(mode='legacy'):
             if not has_tallied:
                 if settlement_reader.started is None:
                     print("\n[状态] 结算界面，等待金额稳定后核对账目...")
+                if phased is not None:
+                    phased.begin_settlement(expected_cashout is not None)
+                    if phased.expected_cash is None:
+                        raise RuntimeError('缺少本局翻倍记录，无法核对入账。请手动核对后开始新一局。')
+                    expected_cashout = phased.expected_cash
                 amount = read_result_number(img, RESULT_REWARD_ZONE)
                 earned = settlement_reader.observe(amount, time.monotonic(), expected_cashout)
                 if earned is None:

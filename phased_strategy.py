@@ -1,38 +1,69 @@
-"""Always double to a reachable target; advance only on confirmed settlement."""
-
-TARGETS = (12800, 6400, 12800)
+"""Three phases driven by confirmed wins, never by ongoing reward OCR."""
+from challenge_reward import PRIZES
 
 
 class PhasedStrategy:
     def __init__(self, stage=0):
-        if type(stage) is not int or not 0 <= stage <= len(TARGETS):
+        if type(stage) is not int or not 0 <= stage <= 3:
             raise ValueError('Invalid saved strategy stage')
         self.stage = stage
-        self.round_target = None
+        self.reset_round()
 
     @property
     def complete(self):
-        return self.stage == len(TARGETS)
+        return self.stage == 3
 
     def reset_round(self):
-        self.round_target = None
+        self.base_cash = None
+        self.successes = 0
+        self.pending_guess = False
+        self.target_wins = None
+        self.settling = False
 
-    def decide(self, coins, cash):
+    def start_round(self, base_cash, coins):
+        if base_cash not in PRIZES:
+            raise ValueError('Unconfirmed initial poker reward')
+        if self.base_cash is not None:
+            return
+        self.base_cash = base_cash
+        if self.stage == 1:
+            candidates = [n for n in range(32) if coins + base_cash * 2**n < 20000]
+            if not candidates:
+                raise RuntimeError('本局起手奖金已无法保留第三阶段，请手动处理。')
+            self.target_wins = min(candidates, key=lambda n: (abs(base_cash * 2**n - 6400), n))
+
+    @property
+    def expected_cash(self):
+        return None if self.base_cash is None else self.base_cash * 2**self.successes
+
+    def guess_clicked(self):
+        if self.base_cash is None:
+            raise RuntimeError('尚未确认本局起手奖励，无法安全计数。请从新一局开始。')
+        self.pending_guess = True
+
+    def confirm_success(self):
+        # Repeated success frames and repeated clicks consume one pending guess.
+        if self.pending_guess:
+            self.successes += 1
+            self.pending_guess = False
+
+    def begin_settlement(self, cashout_requested):
+        if not self.settling:
+            # At the game limit, the final win leads straight to RESULT.
+            if not cashout_requested:
+                self.confirm_success()
+            self.settling = True
+
+    def decide(self):
         if self.complete:
             return 'stop'
-        if cash <= 0:
-            raise ValueError('Reward must be confirmed before deciding')
-        if self.round_target is None:
-            candidates = [cash * 2**n for n in range(32)]
-            # Keep a following round available for the first two settlements.
-            if self.stage < 2:
-                candidates = [amount for amount in candidates if coins + amount < 20000]
-            if not candidates:
-                raise RuntimeError('当前奖金额已无法在每日上限内保留下一阶段，请手动处理本局。')
-            self.round_target = min(candidates, key=lambda amount: (abs(amount - TARGETS[self.stage]), amount))
-        return 'cashout' if cash >= self.round_target else 'challenge'
+        if self.base_cash is None:
+            raise RuntimeError('尚未确认本局起手奖励。')
+        if self.stage == 1 and self.successes >= self.target_wins:
+            return 'cashout'
+        return 'challenge'
 
     def stage_after_credit(self, earned):
-        if self.round_target is not None and earned >= self.round_target and not self.complete:
-            return self.stage + 1
-        return self.stage
+        # A confirmed successful settlement advances the phase independently
+        # of the numeric target. The settlement reader verifies the amount.
+        return min(3, self.stage + 1)
